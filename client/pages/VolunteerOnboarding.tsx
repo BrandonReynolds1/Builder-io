@@ -29,6 +29,12 @@ interface FormData {
 
 export default function VolunteerOnboarding() {
   const [step, setStep] = useState<Step>("intro");
+
+  // Set dark theme on load
+  useEffect(() => {
+    document.documentElement.classList.add("dark");
+    document.documentElement.classList.remove("light");
+  }, []);
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
     lastName: "",
