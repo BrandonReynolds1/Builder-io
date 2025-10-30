@@ -1,173 +1,240 @@
 import { Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { Heart, Users } from "lucide-react";
+import { Clock, Shield, Users, Heart } from "lucide-react";
 
 export default function Index() {
   return (
     <Layout showHeader={true}>
-      <div className="bg-gradient-to-b from-primary/5 via-secondary/5 to-transparent">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
-          {/* Hero Section */}
-          <div className="text-center mb-16 sm:mb-24 animate-fade-in">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4 sm:mb-6 text-foreground">
-              Find <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Support</span> You Need
+      <div className="bg-gradient-to-b from-background via-background to-muted/20">
+        {/* Hero Section */}
+        <section className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32">
+          <div className="max-w-3xl mx-auto text-center">
+            <h1 className="text-5xl sm:text-6xl font-bold text-foreground mb-6">
+              You're Not Alone in This Journey
             </h1>
-            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-              SOBR connects individuals seeking recovery with dedicated volunteer sponsors who understand the journey and are committed to supporting your path to wellness.
+            <p className="text-xl text-muted-foreground mb-8">
+              Connect with experienced sponsors who understand your struggle. Free,
+              confidential support available 24/7.
             </p>
-            <div className="flex gap-3 justify-center flex-wrap">
-              <div className="inline-flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 px-4 py-2 rounded-full">
-                <Heart className="w-4 h-4 text-secondary" />
-                <span>Compassionate Support</span>
-              </div>
-              <div className="inline-flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 px-4 py-2 rounded-full">
-                <Users className="w-4 h-4 text-primary" />
-                <span>Trusted Volunteers</span>
-              </div>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                to="/seeker-onboarding"
+                className="inline-flex items-center justify-center px-8 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors text-lg"
+              >
+                Get Help Now
+              </Link>
+              <button className="inline-flex items-center justify-center px-8 py-3 border border-border bg-muted/20 text-foreground rounded-lg font-medium hover:bg-muted/40 transition-colors text-lg">
+                Learn How It Works
+              </button>
             </div>
           </div>
+        </section>
 
-          {/* Role Selection Cards */}
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-16">
-            {/* Seeker Card */}
-            <Link
-              to="/seeker-onboarding"
-              className="group relative overflow-hidden rounded-2xl bg-card border border-border p-8 sm:p-10 transition-all hover:shadow-lg hover:border-primary/50 animate-slide-up"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative">
-                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                  <Heart className="w-7 h-7 text-primary" />
-                </div>
-                <h2 className="text-2xl font-bold mb-3 text-foreground">
-                  I'm Seeking Support
-                </h2>
-                <p className="text-muted-foreground mb-6">
-                  Looking for a compassionate sponsor to support your recovery journey? Get started with a quick, simple process.
-                </p>
-                <ul className="space-y-2 text-sm text-muted-foreground mb-6">
-                  <li className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    Quick setup - takes 5 minutes
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    Matched with verified sponsors
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    Start your journey today
-                  </li>
-                </ul>
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 text-primary font-medium group-hover:bg-primary/20 transition-colors">
-                  Get Started
-                  <span className="group-hover:translate-x-1 transition-transform">→</span>
-                </div>
-              </div>
-            </Link>
-
-            {/* Volunteer Card */}
-            <Link
-              to="/volunteer-onboarding"
-              className="group relative overflow-hidden rounded-2xl bg-card border border-border p-8 sm:p-10 transition-all hover:shadow-lg hover:border-secondary/50 animate-slide-up"
-              style={{ animationDelay: "0.1s" }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-secondary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative">
-                <div className="w-14 h-14 rounded-full bg-secondary/10 flex items-center justify-center mb-4 group-hover:bg-secondary/20 transition-colors">
-                  <Users className="w-7 h-7 text-secondary" />
-                </div>
-                <h2 className="text-2xl font-bold mb-3 text-foreground">
-                  I Want to Volunteer
-                </h2>
-                <p className="text-muted-foreground mb-6">
-                  Ready to make a meaningful difference? Become a sponsor and support someone on their path to recovery.
-                </p>
-                <ul className="space-y-2 text-sm text-muted-foreground mb-6">
-                  <li className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
-                    Comprehensive vetting process
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
-                    Background verification included
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
-                    Training and ongoing support
-                  </li>
-                </ul>
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary/10 text-secondary font-medium group-hover:bg-secondary/20 transition-colors">
-                  Apply Now
-                  <span className="group-hover:translate-x-1 transition-transform">→</span>
-                </div>
-              </div>
-            </Link>
+        {/* Crisis Banner */}
+        <section className="bg-amber-600/20 border-y border-amber-600/30 py-4">
+          <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+            <p className="text-center text-amber-100 font-medium">
+              <strong>Crisis?</strong> Call 988 (Suicide & Crisis Lifeline) or 911
+              for immediate emergency assistance
+            </p>
           </div>
+        </section>
 
-          {/* Info Section */}
-          <div
-            id="about"
-            className="max-w-3xl mx-auto bg-card border border-border rounded-2xl p-8 sm:p-12"
-          >
-            <h2 className="text-2xl font-bold mb-6 text-foreground">
+        {/* Features Grid */}
+        <section className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-24">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Immediate Support */}
+            <div className="bg-card border border-border rounded-2xl p-6 flex flex-col items-center text-center hover:border-primary/50 transition-colors">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mb-4">
+                <Clock className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                Immediate Support
+              </h3>
+              <p className="text-muted-foreground">
+                Connect with available sponsors in minutes, not days
+              </p>
+            </div>
+
+            {/* 100% Confidential */}
+            <div className="bg-card border border-border rounded-2xl p-6 flex flex-col items-center text-center hover:border-primary/50 transition-colors">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mb-4">
+                <Shield className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                100% Confidential
+              </h3>
+              <p className="text-muted-foreground">
+                Your privacy is protected. All connections are secure and private
+              </p>
+            </div>
+
+            {/* Experienced Sponsors */}
+            <div className="bg-card border border-border rounded-2xl p-6 flex flex-col items-center text-center hover:border-primary/50 transition-colors">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mb-4">
+                <Users className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                Experienced Sponsors
+              </h3>
+              <p className="text-muted-foreground">
+                Connect with people who've been through recovery themselves
+              </p>
+            </div>
+
+            {/* Always Free */}
+            <div className="bg-card border border-border rounded-2xl p-6 flex flex-col items-center text-center hover:border-primary/50 transition-colors">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mb-4">
+                <Heart className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                Always Free
+              </h3>
+              <p className="text-muted-foreground">
+                No cost, no insurance required. Help when you need it most
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* How It Works */}
+        <section className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-24 bg-muted/10">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-4xl font-bold text-center text-foreground mb-16">
               How SOBR Works
             </h2>
-            <div className="grid sm:grid-cols-2 gap-8">
-              <div>
-                <h3 className="font-bold text-lg mb-3 text-foreground">
-                  For Those Seeking Support
-                </h3>
-                <ol className="space-y-3 text-muted-foreground text-sm">
-                  <li className="flex gap-3">
-                    <span className="font-bold text-primary flex-shrink-0">1.</span>
-                    <span>Complete a brief questionnaire about your recovery goals</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="font-bold text-primary flex-shrink-0">2.</span>
-                    <span>We match you with vetted, compassionate sponsors</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="font-bold text-primary flex-shrink-0">3.</span>
-                    <span>Connect directly and build your support relationship</span>
-                  </li>
-                </ol>
+
+            <div className="space-y-8">
+              {/* Step 1 */}
+              <div className="flex gap-6">
+                <div className="flex-shrink-0">
+                  <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary text-primary-foreground font-bold">
+                    1
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-xl font-medium text-foreground mb-2">
+                    Share Your Needs
+                  </h3>
+                  <p className="text-muted-foreground">
+                    Tell us if you're in crisis or exploring options. Share what
+                    type of support you're looking for.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-lg mb-3 text-foreground">
-                  For Volunteer Sponsors
-                </h3>
-                <ol className="space-y-3 text-muted-foreground text-sm">
-                  <li className="flex gap-3">
-                    <span className="font-bold text-secondary flex-shrink-0">1.</span>
-                    <span>Complete application and background verification</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="font-bold text-secondary flex-shrink-0">2.</span>
-                    <span>Participate in sponsor training program</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="font-bold text-secondary flex-shrink-0">3.</span>
-                    <span>Get matched and begin supporting a seeker</span>
-                  </li>
-                </ol>
+
+              {/* Step 2 */}
+              <div className="flex gap-6">
+                <div className="flex-shrink-0">
+                  <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary text-primary-foreground font-bold">
+                    2
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-xl font-medium text-foreground mb-2">
+                    Get Matched
+                  </h3>
+                  <p className="text-muted-foreground">
+                    We'll show you available sponsors who specialize in your
+                    specific situation and recovery path.
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="flex gap-6">
+                <div className="flex-shrink-0">
+                  <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary text-primary-foreground font-bold">
+                    3
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-xl font-medium text-foreground mb-2">
+                    Connect & Start Your Journey
+                  </h3>
+                  <p className="text-muted-foreground">
+                    Reach out via call or message. Your sponsor will help guide you
+                    toward the resources and support you need.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* Footer */}
-      <footer className="bg-card border-t border-border mt-16 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-muted-foreground">
-          <p>
-            SOBR is committed to creating safe, supportive connections for recovery.
-          </p>
-          <p className="mt-2">
-            © 2024 SOBR. All rights reserved.
-          </p>
-        </div>
-      </footer>
+        {/* Final CTA Section */}
+        <section className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-24">
+          <div className="max-w-3xl mx-auto bg-gradient-to-r from-primary via-secondary to-primary rounded-2xl p-12 text-center">
+            <h2 className="text-4xl font-bold text-white mb-4">
+              Ready to Take the First Step?
+            </h2>
+            <p className="text-lg text-primary-foreground/80 mb-8">
+              Recovery is possible. Let us help you connect with someone who can
+              support you on your journey.
+            </p>
+            <Link
+              to="/seeker-onboarding"
+              className="inline-flex items-center justify-center px-8 py-3 bg-white text-primary font-medium rounded-lg hover:bg-gray-100 transition-colors text-lg"
+            >
+              Get Help Now
+            </Link>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="bg-card border-t border-border py-8">
+          <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-6 pb-6 border-b border-border">
+              <div className="flex items-center gap-3">
+                <svg
+                  width="48"
+                  height="48"
+                  viewBox="0 0 48 48"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="flex-shrink-0 opacity-50"
+                >
+                  <circle
+                    cx="24"
+                    cy="24"
+                    r="20"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    fill="none"
+                    className="text-primary"
+                  />
+                  <path
+                    d="M24 12L32 28H16L24 12Z"
+                    fill="currentColor"
+                    className="text-primary"
+                  />
+                  <path
+                    d="M14 32C14 32 16 30 20 30C22 30 23 31 24 31C25 31 26 30 28 30C32 30 34 32 34 32"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    className="text-primary"
+                  />
+                </svg>
+                <div>
+                  <div className="font-bold text-primary">SOBR</div>
+                  <p className="text-sm text-muted-foreground">
+                    SOBR is a free resource connecting people in recovery.
+                    <br />
+                    Not a substitute for professional medical treatment.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-center text-sm text-muted-foreground border-t border-border pt-6">
+              <p>
+                National Helplines: SAMHSA 1-800-662-4357 | Crisis Lifeline 988
+              </p>
+            </div>
+          </div>
+        </footer>
+      </div>
     </Layout>
   );
 }
