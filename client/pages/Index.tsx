@@ -1,8 +1,18 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { Clock, Shield, Users, Heart } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
 
 export default function Index() {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/messages");
+    }
+  }, [isAuthenticated, navigate]);
   return (
     <Layout showHeader={true}>
       <div className="bg-gradient-to-b from-background via-background to-muted/20">
