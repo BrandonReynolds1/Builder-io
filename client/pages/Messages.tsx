@@ -11,6 +11,15 @@ import {
   Clock,
   MapPin,
 } from "lucide-react";
+import {
+  addConnectionRequest,
+  getIncomingRequestsForSponsor,
+  acceptConnection,
+  declineConnection,
+  connectionIsAccepted,
+  addMessageBetween,
+  getConversationsForUser,
+} from "@/lib/relations";
 
 interface ConversationMessage {
   id: string;
@@ -56,6 +65,8 @@ export default function Messages() {
     [],
   );
 
+  const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
+
   if (!user) {
     navigate("/login");
     return null;
@@ -71,71 +82,77 @@ export default function Messages() {
     // Load available sponsors for regular users
     if (user.role === "user") {
       const allUsers = JSON.parse(localStorage.getItem("sobrUsers") || "[]");
-      const sponsors = allUsers.filter((u: any) => u.role === "sponsor");
+      // Only show sponsors who have been vetted/approved by admin
+      const sponsors = allUsers.filter((u: any) => u.role === "sponsor" && u.vetted);
       setAvailableSponsors(sponsors);
+    }
+
+    // Load incoming requests for sponsors
+    if (user.role === "sponsor") {
+      const reqs = getIncomingRequestsForSponsor(user.id);
+      setIncomingRequests(reqs);
     }
   }, [user.id]);
 
   const sendMessage = () => {
     if (!selectedConversation || !messageInput.trim()) return;
 
-    const newMessage: ConversationMessage = {
-      id: `msg_${Date.now()}`,
-      senderId: user.id,
-      senderName: user.displayName,
-      message: messageInput,
-      timestamp: new Date().toISOString(),
-    };
+    const otherId = selectedConversation.otherUserId;
 
-    const updatedConversation = {
-      ...selectedConversation,
-      messages: [...selectedConversation.messages, newMessage],
-      lastMessage: messageInput,
-      lastMessageTime: new Date().toLocaleTimeString(),
-    };
+    // Enforce connection approval: if user is seeker and other is sponsor, require accepted connection
+    let accepted = true;
+    if (user.role === "user" && selectedConversation.otherUserRole === "sponsor") {
+      accepted = connectionIsAccepted(user.id, otherId);
+    }
+    if (user.role === "sponsor" && selectedConversation.otherUserRole === "user") {
+      accepted = connectionIsAccepted(otherId, user.id);
+    }
 
-    const updatedConversations = conversations.map((c) =>
-      c.id === selectedConversation.id ? updatedConversation : c,
-    );
+    if (!accepted) {
+      // Inform user that the connection is pending
+      alert("Connection not yet approved. The sponsor must accept the connection before messaging.");
+      return;
+    }
 
-    setConversations(updatedConversations);
-    setSelectedConversation(updatedConversation);
-    localStorage.setItem(
-      `conversations_${user.id}`,
-      JSON.stringify(updatedConversations),
-    );
+    // Use shared helper to persist message to both sides
+    addMessageBetween(user.id, otherId, messageInput);
+
+    // Refresh local conversations in UI
+    const saved = getConversationsForUser(user.id);
+    setConversations(saved);
+    const updatedSelected = saved.find((c) => c.otherUserId === otherId) || null;
+    setSelectedConversation(updatedSelected);
     setMessageInput("");
   };
 
   const startConversation = (sponsor: SponsorProfile) => {
-    const existingConv = conversations.find(
-      (c) => c.otherUserId === sponsor.id,
-    );
+    // Create a connection request (pending). Sponsor must accept before messaging is enabled.
+    addConnectionRequest(user.id, sponsor.id);
 
-    if (existingConv) {
-      setSelectedConversation(existingConv);
-      setActiveTab("messages");
-      return;
+    // Ensure we have a conversation entry for the requester and open it (it may be empty / pending)
+    const convs = getConversationsForUser(user.id);
+    const conv = convs.find((c) => c.otherUserId === sponsor.id);
+    if (conv) {
+      setConversations(convs);
+      setSelectedConversation(conv);
+    } else {
+      // fallback: create a lightweight local conv to show status
+      const newConversation: Conversation = {
+        id: `conv_${Date.now()}`,
+        otherUserId: sponsor.id,
+        otherUserName: sponsor.displayName,
+        otherUserRole: "sponsor",
+        lastMessage: "Request sent",
+        lastMessageTime: new Date().toLocaleTimeString(),
+        messages: [],
+        isRead: true,
+      };
+      const updated = [...conversations, newConversation];
+      setConversations(updated);
+      setSelectedConversation(newConversation);
+      localStorage.setItem(`conversations_${user.id}`, JSON.stringify(updated));
     }
 
-    const newConversation: Conversation = {
-      id: `conv_${Date.now()}`,
-      otherUserId: sponsor.id,
-      otherUserName: sponsor.displayName,
-      otherUserRole: "sponsor",
-      lastMessage: "",
-      lastMessageTime: "",
-      messages: [],
-      isRead: true,
-    };
-
-    const updatedConversations = [...conversations, newConversation];
-    setConversations(updatedConversations);
-    setSelectedConversation(newConversation);
-    localStorage.setItem(
-      `conversations_${user.id}`,
-      JSON.stringify(updatedConversations),
-    );
     setActiveTab("messages");
   };
 
@@ -210,7 +227,75 @@ export default function Messages() {
             {/* Conversation List or Sponsor Browse */}
             <div className="flex-1 overflow-y-auto">
               {activeTab === "messages" ? (
-                filteredConversations.length === 0 ? (
+                // If sponsor, show incoming connection requests above conversation list
+                user.role === "sponsor" && incomingRequests.length > 0 ? (
+                  <div>
+                    <div className="p-4 border-b">
+                      <h3 className="font-medium">Incoming Requests</h3>
+                      <div className="space-y-2 mt-2">
+                        {incomingRequests.map((r) => (
+                          <div key={`${r.userId}_${r.sponsorId}`} className="flex items-center justify-between p-2 border rounded">
+                            <div>
+                              <div className="font-medium">{getConversationsForUser(user.id).find(c => c.otherUserId === r.userId)?.otherUserName || r.userId}</div>
+                              <div className="text-xs text-muted-foreground">Requested {new Date(r.createdAt).toLocaleString()}</div>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  acceptConnection(r.userId, user.id);
+                                  setIncomingRequests(getIncomingRequestsForSponsor(user.id));
+                                  setConversations(getConversationsForUser(user.id));
+                                }}
+                                className="px-2 py-1 bg-secondary text-secondary-foreground rounded"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                onClick={() => {
+                                  declineConnection(r.userId, user.id);
+                                  setIncomingRequests(getIncomingRequestsForSponsor(user.id));
+                                }}
+                                className="px-2 py-1 bg-red-500 text-white rounded"
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="overflow-y-auto">
+                      {filteredConversations.length === 0 ? (
+                        <div className="p-4 text-center text-muted-foreground">
+                          <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No conversations yet</p>
+                        </div>
+                      ) : (
+                        filteredConversations.map((conv) => (
+                          <button
+                            key={conv.id}
+                            onClick={() => setSelectedConversation(conv)}
+                            className={`w-full p-4 border-b border-border text-left transition-colors ${
+                              selectedConversation?.id === conv.id
+                                ? "bg-primary/10 border-l-2 border-l-primary"
+                                : "hover:bg-muted/20"
+                            }`}
+                          >
+                            <h3 className="font-medium text-foreground truncate">
+                              {conv.otherUserName}
+                            </h3>
+                            <p className="text-xs text-muted-foreground truncate mt-1">
+                              {conv.lastMessage || "No messages yet"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {conv.lastMessageTime}
+                            </p>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ) : filteredConversations.length === 0 ? (
                   <div className="p-4 text-center text-muted-foreground">
                     <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">No conversations yet</p>

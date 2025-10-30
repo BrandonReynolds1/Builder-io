@@ -52,6 +52,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     // Simulate API call - in production, call your backend
+    // Temporary hardcoded admin credentials
+    if (email === "admin" && password === "admin") {
+      const adminProfile: UserProfile = {
+        id: "admin",
+        email: "admin",
+        displayName: "Administrator",
+        role: "admin",
+        createdAt: new Date().toISOString(),
+      };
+
+      setUser(adminProfile);
+      localStorage.setItem("sobrUser", JSON.stringify(adminProfile));
+      return;
+    }
+
     const users = JSON.parse(localStorage.getItem("sobrUsers") || "[]");
     const foundUser = users.find(
       (u: any) => u.email === email && u.password === password,

@@ -103,6 +103,14 @@ function Header() {
               >
                 Messages
               </Link>
+              {user?.role === "admin" && (
+                <Link
+                  to="/admin"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition-colors text-sm text-foreground"
+                >
+                  Admin
+                </Link>
+              )}
               <div className="text-sm text-muted-foreground">
                 {user?.displayName}
               </div>
