@@ -8,11 +8,52 @@
 @layer base {
   /**
    * Tailwind CSS theme for SOBR
-   * A modern, warm color palette designed to convey support, hope, and healing
-   * tailwind.config.ts expects the following color variables to be expressed as HSL values.
-   * A different format will require also updating the theme in tailwind.config.ts.
+   * Dark theme with blue accents inspired by Figma design
+   * Uses oklch values converted to HSL for Tailwind compatibility
   */
   :root {
+    /* Dark theme as default */
+    --background: 211 25% 11%;
+    --foreground: 213 15% 85%;
+
+    --card: 211 25% 15%;
+    --card-foreground: 213 15% 85%;
+
+    --popover: 211 25% 15%;
+    --popover-foreground: 213 15% 85%;
+
+    --primary: 220 75% 56%;
+    --primary-foreground: 211 25% 11%;
+
+    --secondary: 264 75% 55%;
+    --secondary-foreground: 211 25% 11%;
+
+    --muted: 211 20% 25%;
+    --muted-foreground: 213 15% 55%;
+
+    --accent: 48 100% 50%;
+    --accent-foreground: 211 25% 11%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 211 15% 20%;
+    --input: 211 15% 18%;
+    --ring: 220 75% 56%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 211 25% 11%;
+    --sidebar-foreground: 213 15% 85%;
+    --sidebar-primary: 220 75% 56%;
+    --sidebar-primary-foreground: 211 25% 11%;
+    --sidebar-accent: 264 75% 55%;
+    --sidebar-accent-foreground: 211 25% 11%;
+    --sidebar-border: 211 15% 20%;
+    --sidebar-ring: 220 75% 56%;
+  }
+
+  .light {
     --background: 0 0% 99%;
     --foreground: 213 20% 18%;
 
@@ -41,61 +82,14 @@
     --input: 213 15% 94%;
     --ring: 220 70% 50%;
 
-    --radius: 0.75rem;
-
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 213 20% 25%;
-
     --sidebar-primary: 220 70% 50%;
-
     --sidebar-primary-foreground: 0 0% 100%;
-
     --sidebar-accent: 264 65% 55%;
-
     --sidebar-accent-foreground: 0 0% 100%;
-
     --sidebar-border: 213 15% 90%;
-
     --sidebar-ring: 220 70% 50%;
-  }
-
-  .dark {
-    --background: 213 25% 12%;
-    --foreground: 0 0% 95%;
-
-    --card: 213 25% 16%;
-    --card-foreground: 0 0% 95%;
-
-    --popover: 213 25% 16%;
-    --popover-foreground: 0 0% 95%;
-
-    --primary: 220 80% 60%;
-    --primary-foreground: 213 25% 12%;
-
-    --secondary: 264 75% 65%;
-    --secondary-foreground: 213 25% 12%;
-
-    --muted: 213 20% 35%;
-    --muted-foreground: 213 15% 65%;
-
-    --accent: 48 100% 55%;
-    --accent-foreground: 213 25% 12%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 213 25% 24%;
-    --input: 213 25% 22%;
-    --ring: 220 80% 60%;
-    --sidebar-background: 213 25% 12%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 220 80% 60%;
-    --sidebar-primary-foreground: 213 25% 12%;
-    --sidebar-accent: 264 75% 65%;
-    --sidebar-accent-foreground: 213 25% 12%;
-    --sidebar-border: 213 25% 24%;
-    --sidebar-ring: 220 80% 60%;
   }
 }
 
