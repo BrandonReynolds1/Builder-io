@@ -7,9 +7,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
+import { AuthProvider } from "./contexts/AuthContext";
 import Index from "./pages/Index";
-import SeekerOnboarding from "./pages/SeekerOnboarding";
-import VolunteerOnboarding from "./pages/VolunteerOnboarding";
+import Register from "./pages/Register";
+import Login from "./pages/Login";
+import SponsorRegistration from "./pages/SponsorRegistration";
+import UserNeeds from "./pages/UserNeeds";
+import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,22 +35,24 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/seeker-onboarding" element={<SeekerOnboarding />} />
-            <Route
-              path="/volunteer-onboarding"
-              element={<VolunteerOnboarding />}
-            />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/sponsor-registration" element={<SponsorRegistration />} />
+              <Route path="/user-needs" element={<UserNeeds />} />
+              <Route path="/messages" element={<Messages />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 };
