@@ -13,6 +13,11 @@ interface FormData {
 
 export default function SeekerOnboarding() {
   const [step, setStep] = useState<Step>("intro");
+  // Set dark theme on load
+  React.useEffect(() => {
+    document.documentElement.classList.add("dark");
+    document.documentElement.classList.remove("light");
+  }, []);
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
     email: "",
