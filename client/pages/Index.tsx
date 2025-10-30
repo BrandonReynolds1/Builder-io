@@ -33,7 +33,10 @@ export default function Index() {
               >
                 Get Help Now
               </Link>
-              <a href="#features" className="inline-flex items-center justify-center px-8 py-3 border border-border bg-muted/20 text-foreground rounded-lg font-medium hover:bg-muted/40 transition-colors text-lg">
+              <a
+                href="#features"
+                className="inline-flex items-center justify-center px-8 py-3 border border-border bg-muted/20 text-foreground rounded-lg font-medium hover:bg-muted/40 transition-colors text-lg"
+              >
                 Learn How It Works
               </a>
             </div>

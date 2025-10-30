@@ -21,7 +21,12 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, displayName: string, role: UserRole) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    displayName: string,
+    role: UserRole,
+  ) => Promise<void>;
   logout: () => void;
   updateUserProfile: (profile: Partial<UserProfile>) => void;
 }
@@ -49,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Simulate API call - in production, call your backend
     const users = JSON.parse(localStorage.getItem("sobrUsers") || "[]");
     const foundUser = users.find(
-      (u: any) => u.email === email && u.password === password
+      (u: any) => u.email === email && u.password === password,
     );
 
     if (!foundUser) {
@@ -76,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string,
     password: string,
     displayName: string,
-    role: UserRole
+    role: UserRole,
   ) => {
     // Check if user already exists
     const users = JSON.parse(localStorage.getItem("sobrUsers") || "[]");

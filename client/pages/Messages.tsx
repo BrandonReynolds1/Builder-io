@@ -45,13 +45,16 @@ export default function Messages() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [selectedConversation, setSelectedConversation] =
+    useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"messages" | "browse">(
-    user?.role === "sponsor" ? "messages" : "browse"
+    user?.role === "sponsor" ? "messages" : "browse",
   );
-  const [availableSponsors, setAvailableSponsors] = useState<SponsorProfile[]>([]);
+  const [availableSponsors, setAvailableSponsors] = useState<SponsorProfile[]>(
+    [],
+  );
 
   if (!user) {
     navigate("/login");
@@ -60,9 +63,7 @@ export default function Messages() {
 
   useEffect(() => {
     // Load conversations from localStorage
-    const savedConversations = localStorage.getItem(
-      `conversations_${user.id}`
-    );
+    const savedConversations = localStorage.getItem(`conversations_${user.id}`);
     if (savedConversations) {
       setConversations(JSON.parse(savedConversations));
     }
@@ -94,21 +95,21 @@ export default function Messages() {
     };
 
     const updatedConversations = conversations.map((c) =>
-      c.id === selectedConversation.id ? updatedConversation : c
+      c.id === selectedConversation.id ? updatedConversation : c,
     );
 
     setConversations(updatedConversations);
     setSelectedConversation(updatedConversation);
     localStorage.setItem(
       `conversations_${user.id}`,
-      JSON.stringify(updatedConversations)
+      JSON.stringify(updatedConversations),
     );
     setMessageInput("");
   };
 
   const startConversation = (sponsor: SponsorProfile) => {
     const existingConv = conversations.find(
-      (c) => c.otherUserId === sponsor.id
+      (c) => c.otherUserId === sponsor.id,
     );
 
     if (existingConv) {
@@ -133,13 +134,13 @@ export default function Messages() {
     setSelectedConversation(newConversation);
     localStorage.setItem(
       `conversations_${user.id}`,
-      JSON.stringify(updatedConversations)
+      JSON.stringify(updatedConversations),
     );
     setActiveTab("messages");
   };
 
   const filteredConversations = conversations.filter((conv) =>
-    conv.otherUserName.toLowerCase().includes(searchQuery.toLowerCase())
+    conv.otherUserName.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -153,7 +154,9 @@ export default function Messages() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h1 className="text-xl font-bold text-foreground">SOBR</h1>
-                  <p className="text-xs text-muted-foreground">{user.displayName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {user.displayName}
+                  </p>
                 </div>
                 <button
                   onClick={logout}
@@ -254,7 +257,9 @@ export default function Messages() {
                         <div className="space-y-2 text-xs text-muted-foreground mb-4">
                           <div className="flex items-center gap-2">
                             <Clock className="w-3 h-3" />
-                            <span>{sponsor.yearsOfExperience}+ years experience</span>
+                            <span>
+                              {sponsor.yearsOfExperience}+ years experience
+                            </span>
                           </div>
                           {sponsor.vetted && (
                             <div className="flex items-center gap-2">
@@ -307,7 +312,9 @@ export default function Messages() {
                       <div
                         key={msg.id}
                         className={`flex ${
-                          msg.senderId === user.id ? "justify-end" : "justify-start"
+                          msg.senderId === user.id
+                            ? "justify-end"
+                            : "justify-start"
                         }`}
                       >
                         <div
@@ -360,7 +367,9 @@ export default function Messages() {
               <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
                 <div>
                   <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg">Select a conversation or browse sponsors</p>
+                  <p className="text-lg">
+                    Select a conversation or browse sponsors
+                  </p>
                   <p className="text-sm">to get started</p>
                 </div>
               </div>

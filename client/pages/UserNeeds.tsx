@@ -38,7 +38,7 @@ export default function UserNeeds() {
 
   const handleGoalToggle = (goal: string) => {
     setGoals((prev) =>
-      prev.includes(goal) ? prev.filter((g) => g !== goal) : [...prev, goal]
+      prev.includes(goal) ? prev.filter((g) => g !== goal) : [...prev, goal],
     );
   };
 
@@ -73,7 +73,8 @@ export default function UserNeeds() {
               What are your recovery goals?
             </h2>
             <p className="text-muted-foreground mb-6">
-              Select all that apply. This helps us match you with the right sponsor.
+              Select all that apply. This helps us match you with the right
+              sponsor.
             </p>
 
             <div className="space-y-3 mb-8">
@@ -174,7 +175,9 @@ export default function UserNeeds() {
               <h3 className="font-bold text-foreground mb-4">Your Profile</h3>
               <div className="space-y-3 text-sm text-muted-foreground">
                 <p>
-                  <span className="font-medium text-foreground">Recovery Goals:</span>
+                  <span className="font-medium text-foreground">
+                    Recovery Goals:
+                  </span>
                 </p>
                 <ul className="ml-4 space-y-1">
                   {goals.map((goal) => (
@@ -182,7 +185,10 @@ export default function UserNeeds() {
                   ))}
                 </ul>
                 <p className="mt-3">
-                  <span className="font-medium text-foreground">Support Needed:</span> {urgencyOptions.find((o) => o.value === urgency)?.label}
+                  <span className="font-medium text-foreground">
+                    Support Needed:
+                  </span>{" "}
+                  {urgencyOptions.find((o) => o.value === urgency)?.label}
                 </p>
               </div>
             </div>

@@ -10,7 +10,9 @@ export default function Register() {
   const navigate = useNavigate();
   const { register } = useAuth();
   const [step, setStep] = useState<Step>("role");
-  const [selectedRole, setSelectedRole] = useState<"user" | "sponsor" | null>(null);
+  const [selectedRole, setSelectedRole] = useState<"user" | "sponsor" | null>(
+    null,
+  );
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -53,8 +55,13 @@ export default function Register() {
 
     try {
       setIsLoading(true);
-      await register(formData.email, formData.password, formData.displayName, selectedRole === "sponsor" ? "sponsor" : "user");
-      
+      await register(
+        formData.email,
+        formData.password,
+        formData.displayName,
+        selectedRole === "sponsor" ? "sponsor" : "user",
+      );
+
       // Redirect based on role
       if (selectedRole === "sponsor") {
         navigate("/sponsor-registration");
@@ -128,8 +135,8 @@ export default function Register() {
                     I Want to Sponsor
                   </h2>
                   <p className="text-muted-foreground text-sm">
-                    I'm ready to use my experience to support someone in recovery
-                    and want to become a SOBR sponsor
+                    I'm ready to use my experience to support someone in
+                    recovery and want to become a SOBR sponsor
                   </p>
                 </button>
               </div>
@@ -232,7 +239,10 @@ export default function Register() {
               <div className="border-t border-border pt-6 text-center">
                 <p className="text-muted-foreground">
                   Already have an account?{" "}
-                  <a href="/login" className="text-primary hover:text-primary/90 font-medium">
+                  <a
+                    href="/login"
+                    className="text-primary hover:text-primary/90 font-medium"
+                  >
                     Log in here
                   </a>
                 </p>

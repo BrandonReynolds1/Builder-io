@@ -40,17 +40,17 @@ export default function SponsorRegistration() {
 
   const handleQualificationToggle = (qual: string) => {
     setQualifications((prev) =>
-      prev.includes(qual) ? prev.filter((q) => q !== qual) : [...prev, qual]
+      prev.includes(qual) ? prev.filter((q) => q !== qual) : [...prev, qual],
     );
   };
 
   const handleReferenceChange = (
     index: number,
     field: keyof Reference,
-    value: string
+    value: string,
   ) => {
     setReferences((prev) =>
-      prev.map((ref, i) => (i === index ? { ...ref, [field]: value } : ref))
+      prev.map((ref, i) => (i === index ? { ...ref, [field]: value } : ref)),
     );
   };
 
@@ -68,7 +68,12 @@ export default function SponsorRegistration() {
   };
 
   const getProgressPercent = () => {
-    const steps: Step[] = ["qualifications", "experience", "references", "complete"];
+    const steps: Step[] = [
+      "qualifications",
+      "experience",
+      "references",
+      "complete",
+    ];
     return ((steps.indexOf(step) + 1) / steps.length) * 100;
   };
 
@@ -117,7 +122,9 @@ export default function SponsorRegistration() {
                 type="number"
                 min="0"
                 value={yearsOfExperience}
-                onChange={(e) => setYearsOfExperience(parseInt(e.target.value) || 0)}
+                onChange={(e) =>
+                  setYearsOfExperience(parseInt(e.target.value) || 0)
+                }
                 className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-secondary"
               />
             </label>
@@ -185,11 +192,15 @@ export default function SponsorRegistration() {
               Professional References
             </h2>
             <p className="text-muted-foreground mb-6">
-              Provide two references who can verify your experience and character
+              Provide two references who can verify your experience and
+              character
             </p>
 
             {references.map((ref, index) => (
-              <div key={index} className="mb-6 p-6 border border-border rounded-lg">
+              <div
+                key={index}
+                className="mb-6 p-6 border border-border rounded-lg"
+              >
                 <h3 className="font-bold text-foreground mb-4">
                   Reference {index + 1}
                 </h3>
@@ -208,7 +219,11 @@ export default function SponsorRegistration() {
                     placeholder="Relationship (e.g., Counselor, Mentor)"
                     value={ref.relationship}
                     onChange={(e) =>
-                      handleReferenceChange(index, "relationship", e.target.value)
+                      handleReferenceChange(
+                        index,
+                        "relationship",
+                        e.target.value,
+                      )
                     }
                     className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary"
                   />
@@ -273,19 +288,27 @@ export default function SponsorRegistration() {
               <h3 className="font-bold text-foreground mb-4">What's Next</h3>
               <ol className="space-y-3 text-sm text-muted-foreground">
                 <li className="flex gap-3">
-                  <span className="font-bold text-secondary flex-shrink-0">1.</span>
+                  <span className="font-bold text-secondary flex-shrink-0">
+                    1.
+                  </span>
                   <span>Reference verification (3-5 business days)</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="font-bold text-secondary flex-shrink-0">2.</span>
+                  <span className="font-bold text-secondary flex-shrink-0">
+                    2.
+                  </span>
                   <span>Background check review</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="font-bold text-secondary flex-shrink-0">3.</span>
+                  <span className="font-bold text-secondary flex-shrink-0">
+                    3.
+                  </span>
                   <span>Sponsor training program (online, 2 weeks)</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="font-bold text-secondary flex-shrink-0">4.</span>
+                  <span className="font-bold text-secondary flex-shrink-0">
+                    4.
+                  </span>
                   <span>Profile activation and seeker matching</span>
                 </li>
               </ol>
@@ -311,7 +334,11 @@ export default function SponsorRegistration() {
             <div className="mb-8">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-muted-foreground">
-                  Step {["qualifications", "experience", "references"].indexOf(step) + 1} of 3
+                  Step{" "}
+                  {["qualifications", "experience", "references"].indexOf(
+                    step,
+                  ) + 1}{" "}
+                  of 3
                 </span>
               </div>
               <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
