@@ -15,7 +15,10 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 // Initialize dark theme
-if (!document.documentElement.classList.contains("dark") && !document.documentElement.classList.contains("light")) {
+if (
+  !document.documentElement.classList.contains("dark") &&
+  !document.documentElement.classList.contains("light")
+) {
   document.documentElement.classList.add("dark");
 }
 
@@ -35,7 +38,10 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/seeker-onboarding" element={<SeekerOnboarding />} />
-            <Route path="/volunteer-onboarding" element={<VolunteerOnboarding />} />
+            <Route
+              path="/volunteer-onboarding"
+              element={<VolunteerOnboarding />}
+            />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

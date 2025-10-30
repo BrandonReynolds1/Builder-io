@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
-import { CheckCircle, ChevronRight, Clock, Users, FileCheck } from "lucide-react";
+import {
+  CheckCircle,
+  ChevronRight,
+  Clock,
+  Users,
+  FileCheck,
+} from "lucide-react";
 
 type Step =
   | "intro"
@@ -65,7 +71,7 @@ export default function VolunteerOnboarding() {
   const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value, type } = e.target as HTMLInputElement & {
       type: string;
@@ -92,12 +98,12 @@ export default function VolunteerOnboarding() {
   const handleReferenceChange = (
     index: number,
     field: string,
-    value: string
+    value: string,
   ) => {
     setFormData((prev) => ({
       ...prev,
       references: prev.references.map((ref, i) =>
-        i === index ? { ...ref, [field]: value } : ref
+        i === index ? { ...ref, [field]: value } : ref,
       ),
     }));
   };
@@ -180,7 +186,8 @@ export default function VolunteerOnboarding() {
                       Comprehensive Application
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Detailed questionnaire about your background and experience
+                      Detailed questionnaire about your background and
+                      experience
                     </p>
                   </div>
                 </div>
@@ -410,9 +417,13 @@ export default function VolunteerOnboarding() {
                 <option value="yes-own">
                   Yes, personal substance use disorder
                 </option>
-                <option value="yes-family">Yes, family member/close friend</option>
+                <option value="yes-family">
+                  Yes, family member/close friend
+                </option>
                 <option value="professional">Professional background</option>
-                <option value="none">No personal/professional experience</option>
+                <option value="none">
+                  No personal/professional experience
+                </option>
               </select>
             </label>
 
@@ -504,7 +515,10 @@ export default function VolunteerOnboarding() {
                 for your character
               </p>
               {formData.references.map((ref, index) => (
-                <div key={index} className="mb-4 p-4 border border-border rounded-lg">
+                <div
+                  key={index}
+                  className="mb-4 p-4 border border-border rounded-lg"
+                >
                   <p className="font-medium text-foreground mb-3">
                     Reference {index + 1}
                   </p>
@@ -523,7 +537,11 @@ export default function VolunteerOnboarding() {
                       placeholder="Relationship"
                       value={ref.relationship}
                       onChange={(e) =>
-                        handleReferenceChange(index, "relationship", e.target.value)
+                        handleReferenceChange(
+                          index,
+                          "relationship",
+                          e.target.value,
+                        )
                       }
                       className="px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary"
                     />
@@ -573,8 +591,8 @@ export default function VolunteerOnboarding() {
                 </h3>
                 <div className="text-sm text-muted-foreground space-y-1">
                   <p>
-                    <span className="font-medium">Name:</span> {formData.firstName}{" "}
-                    {formData.lastName}
+                    <span className="font-medium">Name:</span>{" "}
+                    {formData.firstName} {formData.lastName}
                   </p>
                   <p>
                     <span className="font-medium">Email:</span> {formData.email}
@@ -588,9 +606,7 @@ export default function VolunteerOnboarding() {
               <hr className="border-border" />
 
               <div>
-                <h3 className="font-medium text-foreground mb-2">
-                  Background
-                </h3>
+                <h3 className="font-medium text-foreground mb-2">Background</h3>
                 <div className="text-sm text-muted-foreground space-y-1">
                   <p>
                     <span className="font-medium">Age:</span>{" "}
@@ -613,9 +629,7 @@ export default function VolunteerOnboarding() {
               <hr className="border-border" />
 
               <div>
-                <h3 className="font-medium text-foreground mb-2">
-                  Commitment
-                </h3>
+                <h3 className="font-medium text-foreground mb-2">Commitment</h3>
                 <div className="text-sm text-muted-foreground space-y-1">
                   <p>
                     <span className="font-medium">Weekly Hours:</span>{" "}
@@ -715,7 +729,8 @@ export default function VolunteerOnboarding() {
             </div>
 
             <p className="text-sm text-muted-foreground mb-8">
-              We'll send updates to <span className="font-medium">{formData.email}</span>
+              We'll send updates to{" "}
+              <span className="font-medium">{formData.email}</span>
             </p>
 
             <a

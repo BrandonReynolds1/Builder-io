@@ -44,7 +44,7 @@ export default function SeekerOnboarding() {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -247,7 +247,8 @@ export default function SeekerOnboarding() {
               <h3 className="font-medium text-foreground mb-3">Your Profile</h3>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>
-                  <span className="font-medium">Name:</span> {formData.firstName}
+                  <span className="font-medium">Name:</span>{" "}
+                  {formData.firstName}
                 </p>
                 <p>
                   <span className="font-medium">Email:</span> {formData.email}
@@ -278,7 +279,9 @@ export default function SeekerOnboarding() {
             <div className="mb-8">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-muted-foreground">
-                  Step {["intro", "basics", "goals", "contact"].indexOf(step) + 1} of 3
+                  Step{" "}
+                  {["intro", "basics", "goals", "contact"].indexOf(step) + 1} of
+                  3
                 </span>
               </div>
               <div className="w-full h-2 bg-muted rounded-full overflow-hidden">

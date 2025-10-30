@@ -13,8 +13,8 @@ export default function Index() {
               You're Not Alone in This Journey
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
-              Connect with experienced sponsors who understand your struggle. Free,
-              confidential support available 24/7.
+              Connect with experienced sponsors who understand your struggle.
+              Free, confidential support available 24/7.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -34,8 +34,8 @@ export default function Index() {
         <section className="bg-amber-600/20 border-y border-amber-600/30 py-4">
           <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
             <p className="text-center text-amber-100 font-medium">
-              <strong>Crisis?</strong> Call 988 (Suicide & Crisis Lifeline) or 911
-              for immediate emergency assistance
+              <strong>Crisis?</strong> Call 988 (Suicide & Crisis Lifeline) or
+              911 for immediate emergency assistance
             </p>
           </div>
         </section>
@@ -65,7 +65,8 @@ export default function Index() {
                 100% Confidential
               </h3>
               <p className="text-muted-foreground">
-                Your privacy is protected. All connections are secure and private
+                Your privacy is protected. All connections are secure and
+                private
               </p>
             </div>
 
@@ -153,8 +154,8 @@ export default function Index() {
                     Connect & Start Your Journey
                   </h3>
                   <p className="text-muted-foreground">
-                    Reach out via call or message. Your sponsor will help guide you
-                    toward the resources and support you need.
+                    Reach out via call or message. Your sponsor will help guide
+                    you toward the resources and support you need.
                   </p>
                 </div>
               </div>
