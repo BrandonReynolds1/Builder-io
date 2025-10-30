@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { CheckCircle, ChevronRight, Heart } from "lucide-react";
 
