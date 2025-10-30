@@ -8,6 +8,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
+import { getUserById, getAllUsers, saveAllUsers } from "@/lib/relations";
+import { ADMIN_ID, makeAdminUser } from "@/config/admin";
 import Index from "./pages/Index";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
@@ -32,6 +34,21 @@ const App = () => {
     // Ensure dark theme is set
     document.documentElement.classList.add("dark");
     document.documentElement.classList.remove("light");
+  }, []);
+
+  // Seed admin user once at startup if missing (development convenience)
+  useEffect(() => {
+    try {
+      const existing = getUserById(ADMIN_ID);
+      if (!existing) {
+        const users = getAllUsers();
+        users.push(makeAdminUser());
+        saveAllUsers(users);
+        console.info("Seeded admin user:", ADMIN_ID);
+      }
+    } catch (e) {
+      // ignore in non-browser environments
+    }
   }, []);
 
   return (

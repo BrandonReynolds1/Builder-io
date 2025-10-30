@@ -27,7 +27,7 @@ export interface Conversation {
   id: string;
   otherUserId: string;
   otherUserName: string;
-  otherUserRole: "sponsor" | "user";
+  otherUserRole: "sponsor" | "user" | "admin";
   lastMessage: string;
   lastMessageTime: string;
   messages: ConversationMessage[];
@@ -139,7 +139,7 @@ export function saveConversationsForUser(userId: string, convs: Conversation[]) 
   localStorage.setItem(`conversations_${userId}`, JSON.stringify(convs));
 }
 
-export function ensureConversationForUser(userId: string, otherId: string, otherRole: "sponsor" | "user") {
+export function ensureConversationForUser(userId: string, otherId: string, otherRole: "sponsor" | "user" | "admin") {
   const convs = getConversationsForUser(userId);
   const existing = convs.find((c) => c.otherUserId === otherId);
   if (existing) return;

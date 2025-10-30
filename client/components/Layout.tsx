@@ -168,11 +168,11 @@ function Header() {
                 Messages
               </Link>
               <div className="px-4 py-2 text-sm text-muted-foreground">
-                {user?.displayName} ({user?.role})
+                <div className="break-words">{user?.displayName} ({user?.role})</div>
               </div>
               <button
                 onClick={handleLogout}
-                className="w-full text-left px-4 py-2 rounded-lg hover:bg-muted transition-colors text-foreground"
+                className="w-full text-left px-4 py-2 mt-2 rounded-lg hover:bg-muted transition-colors text-foreground"
               >
                 Logout
               </button>

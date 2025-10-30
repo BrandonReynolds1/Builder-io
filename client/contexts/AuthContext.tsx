@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_ID } from "@/config/admin";
 
 export type UserRole = "user" | "sponsor" | "admin";
 
@@ -53,10 +54,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     // Simulate API call - in production, call your backend
     // Temporary hardcoded admin credentials
-    if (email === "admin" && password === "admin") {
+    // Allow admin login using runtime-configurable credentials
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       const adminProfile: UserProfile = {
-        id: "admin",
-        email: "admin",
+        id: ADMIN_ID,
+        email: ADMIN_EMAIL,
         displayName: "Administrator",
         role: "admin",
         createdAt: new Date().toISOString(),

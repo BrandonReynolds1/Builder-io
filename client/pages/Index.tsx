@@ -187,7 +187,7 @@ export default function Index() {
               support you on your journey.
             </p>
             <Link
-              to="/seeker-onboarding"
+              to="/register"
               className="inline-flex items-center justify-center px-8 py-3 bg-white text-primary font-medium rounded-lg hover:bg-gray-100 transition-colors text-lg"
             >
               Get Help Now

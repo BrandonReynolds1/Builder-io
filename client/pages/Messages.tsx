@@ -11,6 +11,7 @@ import {
   Clock,
   MapPin,
 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import {
   addConnectionRequest,
   getIncomingRequestsForSponsor,
@@ -19,7 +20,12 @@ import {
   connectionIsAccepted,
   addMessageBetween,
   getConversationsForUser,
+  getUserById,
+  getAllUsers,
+  saveAllUsers,
+  ensureConversationForUser,
 } from "@/lib/relations";
+import { ADMIN_ID, ADMIN_EMAIL, makeAdminUser } from "@/config/admin";
 
 interface ConversationMessage {
   id: string;
@@ -43,7 +49,7 @@ interface Conversation {
   id: string;
   otherUserId: string;
   otherUserName: string;
-  otherUserRole: "sponsor" | "user";
+  otherUserRole: "sponsor" | "user" | "admin";
   lastMessage: string;
   lastMessageTime: string;
   messages: ConversationMessage[];
@@ -66,6 +72,8 @@ export default function Messages() {
   );
 
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [supportMessage, setSupportMessage] = useState("");
 
   if (!user) {
     navigate("/login");
@@ -101,11 +109,16 @@ export default function Messages() {
 
     // Enforce connection approval: if user is seeker and other is sponsor, require accepted connection
     let accepted = true;
-    if (user.role === "user" && selectedConversation.otherUserRole === "sponsor") {
-      accepted = connectionIsAccepted(user.id, otherId);
-    }
-    if (user.role === "sponsor" && selectedConversation.otherUserRole === "user") {
-      accepted = connectionIsAccepted(otherId, user.id);
+    // Allow messaging admin regardless of vetting/connection state
+    if (selectedConversation.otherUserRole === "admin" || otherId === ADMIN_ID) {
+      accepted = true;
+    } else {
+      if (user.role === "user" && selectedConversation.otherUserRole === "sponsor") {
+        accepted = connectionIsAccepted(user.id, otherId);
+      }
+      if (user.role === "sponsor" && selectedConversation.otherUserRole === "user") {
+        accepted = connectionIsAccepted(otherId, user.id);
+      }
     }
 
     if (!accepted) {
@@ -174,6 +187,36 @@ export default function Messages() {
                   <p className="text-xs text-muted-foreground">
                     {user.displayName}
                   </p>
+                  {/* Sponsor approval status banner */}
+                  {user.role === "sponsor" && !user.vetted && (
+                    <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md text-amber-900 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">Application Pending</div>
+                          <p className="text-xs text-amber-900/85 mt-1 truncate">
+                            Your sponsor application is under review. Once
+                            approved you'll receive connection requests and be
+                            able to message seekers.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <button
+                          onClick={() => setShowSupportModal(true)}
+                          className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90 transition-colors"
+                        >
+                          Contact Support
+                        </button>
+                        <button
+                          onClick={() => navigate("/sponsor-registration")}
+                          className="px-2 py-1 bg-muted text-foreground rounded text-xs font-medium hover:bg-muted/80 transition-colors"
+                        >
+                          Edit Application
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={logout}
@@ -240,25 +283,33 @@ export default function Messages() {
                               <div className="text-xs text-muted-foreground">Requested {new Date(r.createdAt).toLocaleString()}</div>
                             </div>
                             <div className="flex gap-2">
-                              <button
-                                onClick={() => {
-                                  acceptConnection(r.userId, user.id);
-                                  setIncomingRequests(getIncomingRequestsForSponsor(user.id));
-                                  setConversations(getConversationsForUser(user.id));
-                                }}
-                                className="px-2 py-1 bg-secondary text-secondary-foreground rounded"
-                              >
-                                Accept
-                              </button>
-                              <button
-                                onClick={() => {
-                                  declineConnection(r.userId, user.id);
-                                  setIncomingRequests(getIncomingRequestsForSponsor(user.id));
-                                }}
-                                className="px-2 py-1 bg-red-500 text-white rounded"
-                              >
-                                Decline
-                              </button>
+                                <button
+                                  onClick={() => {
+                                    acceptConnection(r.userId, user.id);
+                                    toast({
+                                      title: "Connection Accepted",
+                                      description: `You have accepted the connection from ${getConversationsForUser(user.id).find(c => c.otherUserId === r.userId)?.otherUserName || r.userId}.`,
+                                    });
+                                    setIncomingRequests(getIncomingRequestsForSponsor(user.id));
+                                    setConversations(getConversationsForUser(user.id));
+                                  }}
+                                  className="px-2 py-1 bg-secondary text-secondary-foreground rounded"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    declineConnection(r.userId, user.id);
+                                    toast({
+                                      title: "Connection Declined",
+                                      description: `You have declined the connection from ${getConversationsForUser(user.id).find(c => c.otherUserId === r.userId)?.otherUserName || r.userId}.`,
+                                    });
+                                    setIncomingRequests(getIncomingRequestsForSponsor(user.id));
+                                  }}
+                                  className="px-2 py-1 bg-red-500 text-white rounded"
+                                >
+                                  Decline
+                                </button>
                             </div>
                           </div>
                         ))}
@@ -367,6 +418,92 @@ export default function Messages() {
             </div>
           </div>
 
+          {/* Support compose modal */}
+          {showSupportModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div
+                className="absolute inset-0 bg-black/50"
+                onClick={() => setShowSupportModal(false)}
+              />
+              <div className="relative w-full max-w-lg mx-4 bg-card border border-border rounded-lg p-6 z-10">
+                <h3 className="text-lg font-bold mb-2">Contact Support</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Write a short message to the Administrator about your application.
+                </p>
+                <textarea
+                  rows={6}
+                  value={supportMessage}
+                  onChange={(e) => setSupportMessage(e.target.value)}
+                  className="w-full p-3 border border-input rounded-md bg-background text-foreground placeholder-muted-foreground resize-none"
+                  placeholder="Describe your question or concern..."
+                />
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      setShowSupportModal(false);
+                      setSupportMessage("");
+                    }}
+                    className="px-3 py-2 bg-muted rounded text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      const body = supportMessage.trim();
+                      if (!body) return;
+
+                      // Ensure admin exists
+                      let admin = getUserById(ADMIN_ID);
+                      if (!admin) {
+                        const users = getAllUsers();
+                        const newAdmin = makeAdminUser();
+                        users.push(newAdmin);
+                        saveAllUsers(users);
+                        admin = newAdmin as any;
+                      }
+
+                      // Ensure conversation entries exist (mark admin role explicitly)
+                      ensureConversationForUser(user.id, ADMIN_ID, "admin");
+                      ensureConversationForUser(
+                        ADMIN_ID,
+                        user.id,
+                        user.role === "sponsor" ? "sponsor" : "user",
+                      );
+
+                      // Send message to admin
+                      addMessageBetween(user.id, ADMIN_ID, body);
+
+                      // Refresh and open admin conversation
+                      const convs = getConversationsForUser(user.id);
+                      setConversations(convs);
+                      const adminConv = convs.find((c) => c.otherUserId === ADMIN_ID) || null;
+                      setSelectedConversation(adminConv);
+                      setActiveTab("messages");
+
+                      // Close modal and clear message
+                      setShowSupportModal(false);
+                      setSupportMessage("");
+
+                      // Show confirmation toast
+                      toast({
+                        title: "Message sent",
+                        description: "Your message was delivered to the Administrator.",
+                      });
+                    }}
+                    disabled={!supportMessage.trim()}
+                    className={`px-4 py-2 rounded text-sm font-medium ${
+                      supportMessage.trim()
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "bg-primary/30 text-primary-foreground/60 cursor-not-allowed"
+                    }`}
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Main Content */}
           <div className="flex-1 flex flex-col">
             {selectedConversation ? (
@@ -379,6 +516,8 @@ export default function Messages() {
                   <p className="text-xs text-muted-foreground">
                     {selectedConversation.otherUserRole === "sponsor"
                       ? "Sponsor"
+                      : selectedConversation.otherUserRole === "admin"
+                      ? "Administrator"
                       : "Seeker"}
                   </p>
                 </div>
