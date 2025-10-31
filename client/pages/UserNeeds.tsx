@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,12 +43,46 @@ export default function UserNeeds() {
     "Legal/financial issues",
   ];
 
-  const urgencyOptions = [
+  const [urgencyOptions, setUrgencyOptions] = useState<{ value: string; label: string; icon?: string }[]>([]);
+
+  // Fallback options to use if config fetch fails or Supabase not configured
+  const defaultUrgencyOptions = [
     { value: "crisis", label: "In Crisis - Need Help Now", icon: "🆘" },
     { value: "urgent", label: "Urgent - This Week", icon: "⚡" },
     { value: "soon", label: "Soon - Within a Month", icon: "⏰" },
     { value: "general", label: "General Support", icon: "💙" },
   ];
+
+  useEffect(() => {
+    let mounted = true;
+    import("@/lib/config")
+      .then((mod) => mod.fetchAppConfig())
+      .then((cfg) => {
+        if (!mounted) return;
+        if (cfg.priorities && cfg.priorities.length > 0) {
+          // Map priorities rows to urgency options; attempt to assign icons for known keys
+          const iconMap: Record<string, string> = {
+            crisis: "🆘",
+            urgent: "⚡",
+            soon: "⏰",
+            general: "💙",
+            routine: "✅",
+          };
+          const opts = cfg.priorities.map((p: any) => ({
+            value: p.key ?? String(p.id),
+            label: p.label ?? p.key ?? String(p.id),
+            icon: iconMap[p.key] ?? undefined,
+          }));
+          setUrgencyOptions(opts);
+        } else {
+          setUrgencyOptions(defaultUrgencyOptions);
+        }
+      })
+      .catch(() => setUrgencyOptions(defaultUrgencyOptions));
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleGoalToggle = (goal: string) => {
     setGoals((prev) =>

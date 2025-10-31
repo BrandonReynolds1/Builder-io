@@ -2,10 +2,13 @@ import React, { useEffect, useState } from "react";
 import { Layout } from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  getPendingSponsors,
+  getPendingSponsorsAsync,
   approveSponsor as approveSponsorFn,
+  approveSponsorAsync,
   declineSponsor as declineSponsorFn,
+  declineSponsorAsync,
   bulkApproveSponsors as bulkApproveFn,
+  bulkApproveSponsorsAsync,
   searchPendingSponsors,
   RawUser,
 } from "@/lib/relations";
@@ -19,38 +22,40 @@ export default function Admin() {
   useEffect(() => {
     if (!user) return;
     if (user.role !== "admin") return;
-
-    const pending = getPendingSponsors();
-    setPendingSponsors(pending);
+    (async () => {
+      const pending = await getPendingSponsorsAsync();
+      setPendingSponsors(pending);
+    })();
   }, [user]);
+  const refresh = async () => setPendingSponsors(await getPendingSponsorsAsync());
 
-  const refresh = () => setPendingSponsors(getPendingSponsors());
-
-  const approveSponsor = (id: string) => {
-    approveSponsorFn(id);
-    refresh();
+  const approveSponsor = async (id: string) => {
+    await approveSponsorAsync(id);
+    await refresh();
   };
 
-  const declineSponsor = (id: string) => {
-    declineSponsorFn(id);
-    refresh();
+  const declineSponsor = async (id: string) => {
+    await declineSponsorAsync(id);
+    await refresh();
   };
 
-  const bulkApprove = () => {
+  const bulkApprove = async () => {
     const ids = Object.keys(selectedIds).filter((k) => selectedIds[k]);
     if (ids.length === 0) return;
-    bulkApproveFn(ids);
+    await bulkApproveSponsorsAsync(ids);
     setSelectedIds({});
-    refresh();
+    await refresh();
   };
 
-  const onSearch = (q: string) => {
+  const onSearch = async (q: string) => {
     setSearch(q);
+    const list = await getPendingSponsorsAsync();
     if (!q) {
-      setPendingSponsors(getPendingSponsors());
+      setPendingSponsors(list);
       return;
     }
-    setPendingSponsors(searchPendingSponsors(q));
+    const qlow = q.trim().toLowerCase();
+    setPendingSponsors(list.filter((u) => u.displayName.toLowerCase().includes(qlow) || u.email.toLowerCase().includes(qlow)));
   };
 
   if (!user) {
@@ -84,7 +89,7 @@ export default function Admin() {
           />
           <button
             onClick={bulkApprove}
-            className="px-3 py-2 bg-secondary text-secondary-foreground rounded"
+            className="px-3 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
           >
             Bulk Approve
           </button>
@@ -110,13 +115,13 @@ export default function Admin() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => approveSponsor(s.id)}
-                        className="px-3 py-1 bg-secondary text-secondary-foreground rounded"
+                        className="px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
                       >
                         Approve
                       </button>
                       <button
                         onClick={() => declineSponsor(s.id)}
-                        className="px-3 py-1 bg-red-500 text-white rounded"
+                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
                       >
                         Decline
                       </button>

@@ -14,14 +14,22 @@ import {
 import { toast } from "@/hooks/use-toast";
 import {
   addConnectionRequest,
+  addConnectionRequestAsync,
   getIncomingRequestsForSponsor,
+  getIncomingRequestsForSponsorAsync,
   acceptConnection,
+  acceptConnectionAsync,
   declineConnection,
+  declineConnectionAsync,
   connectionIsAccepted,
+  connectionIsAcceptedAsync,
   addMessageBetween,
+  addMessageBetweenAsync,
   getConversationsForUser,
+  getConversationsForUserAsync,
   getUserById,
   getAllUsers,
+  getAllUsersAsync,
   saveAllUsers,
   ensureConversationForUser,
 } from "@/lib/relations";
@@ -70,6 +78,7 @@ export default function Messages() {
   const [availableSponsors, setAvailableSponsors] = useState<SponsorProfile[]>(
     [],
   );
+  const [dbAvailable, setDbAvailable] = useState<boolean>(true);
 
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
   const [showSupportModal, setShowSupportModal] = useState(false);
@@ -81,28 +90,72 @@ export default function Messages() {
   }
 
   useEffect(() => {
-    // Load conversations from localStorage
-    const savedConversations = localStorage.getItem(`conversations_${user.id}`);
-    if (savedConversations) {
-      setConversations(JSON.parse(savedConversations));
-    }
+    let mounted = true;
+    // Attempt DB-backed loads; fall back to localStorage if API fails
+    (async () => {
+      try {
+        const convs = await getConversationsForUserAsync(user.id);
+        if (!mounted) return;
+        setConversations(convs);
 
-    // Load available sponsors for regular users
-    if (user.role === "user") {
-      const allUsers = JSON.parse(localStorage.getItem("sobrUsers") || "[]");
-      // Only show sponsors who have been vetted/approved by admin
-      const sponsors = allUsers.filter((u: any) => u.role === "sponsor" && u.vetted);
-      setAvailableSponsors(sponsors);
-    }
+        if (user.role === 'user') {
+          const allUsers = await getAllUsersAsync();
+          const sponsors = allUsers.filter((u: any) => u.role === 'sponsor' && u.vetted);
+          // map RawUser -> SponsorProfile
+          const mapped = sponsors.map((u: any) => ({
+            id: u.id,
+            displayName: u.displayName,
+            qualifications: u.qualifications || [],
+            yearsOfExperience: u.yearsOfExperience || 0,
+            vetted: !!u.vetted,
+            rating: (u as any).rating || 0,
+            recoveryGoals: (u as any).recoveryGoals || [],
+          }));
+          setAvailableSponsors(mapped);
+        }
 
-    // Load incoming requests for sponsors
-    if (user.role === "sponsor") {
-      const reqs = getIncomingRequestsForSponsor(user.id);
-      setIncomingRequests(reqs);
-    }
+        if (user.role === 'sponsor') {
+          const reqs = await getIncomingRequestsForSponsorAsync(user.id);
+          setIncomingRequests(reqs);
+        }
+
+        const dbFlag = localStorage.getItem('sobr_db_available');
+        setDbAvailable(dbFlag === '1');
+      } catch (err) {
+        // fallback to previous localStorage-based behavior
+        const savedConversations = localStorage.getItem(`conversations_${user.id}`);
+        if (savedConversations) {
+          setConversations(JSON.parse(savedConversations));
+        }
+
+        if (user.role === "user") {
+          const allUsers = JSON.parse(localStorage.getItem("sobrUsers") || "[]");
+          const sponsors = allUsers.filter((u: any) => u.role === "sponsor" && u.vetted);
+          const mapped = sponsors.map((u: any) => ({
+            id: u.id,
+            displayName: u.displayName,
+            qualifications: u.qualifications || [],
+            yearsOfExperience: u.yearsOfExperience || 0,
+            vetted: !!u.vetted,
+            rating: (u as any).rating || 0,
+            recoveryGoals: (u as any).recoveryGoals || [],
+          }));
+          setAvailableSponsors(mapped);
+        }
+
+        if (user.role === "sponsor") {
+          const reqs = getIncomingRequestsForSponsor(user.id);
+          setIncomingRequests(reqs);
+        }
+
+        setDbAvailable(false);
+      }
+    })();
+
+    return () => { mounted = false };
   }, [user.id]);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!selectedConversation || !messageInput.trim()) return;
 
     const otherId = selectedConversation.otherUserId;
@@ -114,10 +167,10 @@ export default function Messages() {
       accepted = true;
     } else {
       if (user.role === "user" && selectedConversation.otherUserRole === "sponsor") {
-        accepted = connectionIsAccepted(user.id, otherId);
+        accepted = await connectionIsAcceptedAsync(user.id, otherId);
       }
       if (user.role === "sponsor" && selectedConversation.otherUserRole === "user") {
-        accepted = connectionIsAccepted(otherId, user.id);
+        accepted = await connectionIsAcceptedAsync(otherId, user.id);
       }
     }
 
@@ -128,10 +181,10 @@ export default function Messages() {
     }
 
     // Use shared helper to persist message to both sides
-    addMessageBetween(user.id, otherId, messageInput);
+    await addMessageBetweenAsync(user.id, otherId, messageInput);
 
-    // Refresh local conversations in UI
-    const saved = getConversationsForUser(user.id);
+    // Refresh conversations in UI
+    const saved = await getConversationsForUserAsync(user.id);
     setConversations(saved);
     const updatedSelected = saved.find((c) => c.otherUserId === otherId) || null;
     setSelectedConversation(updatedSelected);
@@ -139,34 +192,32 @@ export default function Messages() {
   };
 
   const startConversation = (sponsor: SponsorProfile) => {
-    // Create a connection request (pending). Sponsor must accept before messaging is enabled.
-    addConnectionRequest(user.id, sponsor.id);
-
-    // Ensure we have a conversation entry for the requester and open it (it may be empty / pending)
-    const convs = getConversationsForUser(user.id);
-    const conv = convs.find((c) => c.otherUserId === sponsor.id);
-    if (conv) {
-      setConversations(convs);
-      setSelectedConversation(conv);
-    } else {
-      // fallback: create a lightweight local conv to show status
-      const newConversation: Conversation = {
-        id: `conv_${Date.now()}`,
-        otherUserId: sponsor.id,
-        otherUserName: sponsor.displayName,
-        otherUserRole: "sponsor",
-        lastMessage: "Request sent",
-        lastMessageTime: new Date().toLocaleTimeString(),
-        messages: [],
-        isRead: true,
-      };
-      const updated = [...conversations, newConversation];
-      setConversations(updated);
-      setSelectedConversation(newConversation);
-      localStorage.setItem(`conversations_${user.id}`, JSON.stringify(updated));
-    }
-
-    setActiveTab("messages");
+    (async () => {
+      await addConnectionRequestAsync(user.id, sponsor.id);
+      const convs = await getConversationsForUserAsync(user.id);
+      const conv = convs.find((c) => c.otherUserId === sponsor.id);
+      if (conv) {
+        setConversations(convs);
+        setSelectedConversation(conv);
+      } else {
+        // fallback local conv
+        const newConversation: Conversation = {
+          id: `conv_${Date.now()}`,
+          otherUserId: sponsor.id,
+          otherUserName: sponsor.displayName,
+          otherUserRole: "sponsor",
+          lastMessage: "Request sent",
+          lastMessageTime: new Date().toLocaleTimeString(),
+          messages: [],
+          isRead: true,
+        };
+        const updated = [...conversations, newConversation];
+        setConversations(updated);
+        setSelectedConversation(newConversation);
+        localStorage.setItem(`conversations_${user.id}`, JSON.stringify(updated));
+      }
+      setActiveTab("messages");
+    })();
   };
 
   const filteredConversations = conversations.filter((conv) =>
@@ -189,19 +240,19 @@ export default function Messages() {
                   </p>
                   {/* Sponsor approval status banner */}
                   {user.role === "sponsor" && !user.vetted && (
-                    <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md text-amber-900 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-900 text-sm">
+                      <div className="flex items-start gap-2">
+                        <Clock className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">Application Pending</div>
-                          <p className="text-xs text-amber-900/85 mt-1 truncate">
+                          <div className="font-medium">Application Pending</div>
+                          <p className="text-xs text-amber-900/85 mt-1">
                             Your sponsor application is under review. Once
                             approved you'll receive connection requests and be
                             able to message seekers.
                           </p>
                         </div>
                       </div>
-                      <div className="mt-2 flex items-center gap-2">
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => setShowSupportModal(true)}
                           className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs font-medium hover:bg-primary/90 transition-colors"
@@ -218,12 +269,6 @@ export default function Messages() {
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={logout}
-                  className="px-3 py-1 text-xs bg-muted text-foreground rounded hover:bg-muted/80 transition-colors"
-                >
-                  Logout
-                </button>
               </div>
 
               {/* Tabs */}
@@ -279,32 +324,39 @@ export default function Messages() {
                         {incomingRequests.map((r) => (
                           <div key={`${r.userId}_${r.sponsorId}`} className="flex items-center justify-between p-2 border rounded">
                             <div>
-                              <div className="font-medium">{getConversationsForUser(user.id).find(c => c.otherUserId === r.userId)?.otherUserName || r.userId}</div>
+                              <div className="font-medium">{conversations.find(c => c.otherUserId === r.userId)?.otherUserName || r.userId}</div>
                               <div className="text-xs text-muted-foreground">Requested {new Date(r.createdAt).toLocaleString()}</div>
                             </div>
                             <div className="flex gap-2">
                                 <button
-                                  onClick={() => {
-                                    acceptConnection(r.userId, user.id);
+                                  onClick={async () => {
+                                    await acceptConnectionAsync(r.userId, user.id);
+                                    const convs = await getConversationsForUserAsync(user.id);
+                                    setConversations(convs);
+                                    const name = convs.find(c => c.otherUserId === r.userId)?.otherUserName || r.userId;
                                     toast({
                                       title: "Connection Accepted",
-                                      description: `You have accepted the connection from ${getConversationsForUser(user.id).find(c => c.otherUserId === r.userId)?.otherUserName || r.userId}.`,
+                                      description: `You have accepted the connection from ${name}.`,
                                     });
-                                    setIncomingRequests(getIncomingRequestsForSponsor(user.id));
-                                    setConversations(getConversationsForUser(user.id));
+                                    const reqs = await getIncomingRequestsForSponsorAsync(user.id);
+                                    setIncomingRequests(reqs);
                                   }}
                                   className="px-2 py-1 bg-secondary text-secondary-foreground rounded"
                                 >
                                   Accept
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    declineConnection(r.userId, user.id);
+                                  onClick={async () => {
+                                    await declineConnectionAsync(r.userId, user.id);
+                                    const convs = await getConversationsForUserAsync(user.id);
+                                    setConversations(convs);
+                                    const name = convs.find(c => c.otherUserId === r.userId)?.otherUserName || r.userId;
                                     toast({
                                       title: "Connection Declined",
-                                      description: `You have declined the connection from ${getConversationsForUser(user.id).find(c => c.otherUserId === r.userId)?.otherUserName || r.userId}.`,
+                                      description: `You have declined the connection from ${name}.`,
                                     });
-                                    setIncomingRequests(getIncomingRequestsForSponsor(user.id));
+                                    const reqs = await getIncomingRequestsForSponsorAsync(user.id);
+                                    setIncomingRequests(reqs);
                                   }}
                                   className="px-2 py-1 bg-red-500 text-white rounded"
                                 >
@@ -448,35 +500,65 @@ export default function Messages() {
                     Cancel
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const body = supportMessage.trim();
                       if (!body) return;
 
-                      // Ensure admin exists
-                      let admin = getUserById(ADMIN_ID);
+                      // Ensure admin user exists in DB with a valid UUID
+                      let adminUserId = ADMIN_ID;
+                      try {
+                        // Try to upsert admin user to get/create a UUID-based record
+                        const res = await fetch('/api/users/upsert', {
+                          method: 'POST',
+                          headers: { 'content-type': 'application/json' },
+                          body: JSON.stringify({
+                            email: ADMIN_EMAIL,
+                            full_name: 'Administrator',
+                            metadata: { role: 'admin' }
+                          })
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          if (data.ok && data.user?.id) {
+                            adminUserId = data.user.id; // Use DB UUID
+                            // Cache for future use
+                            localStorage.setItem('sobr_admin_uuid', adminUserId);
+                          }
+                        } else {
+                          // Try cached UUID from previous session
+                          const cached = localStorage.getItem('sobr_admin_uuid');
+                          if (cached) adminUserId = cached;
+                        }
+                      } catch (err) {
+                        // Try cached UUID
+                        const cached = localStorage.getItem('sobr_admin_uuid');
+                        if (cached) adminUserId = cached;
+                      }
+
+                      // Ensure admin exists in local users list
+                      let users = await getAllUsersAsync();
+                      let admin = users.find((u: any) => u.id === adminUserId || u.email === ADMIN_EMAIL);
                       if (!admin) {
-                        const users = getAllUsers();
-                        const newAdmin = makeAdminUser();
-                        users.push(newAdmin);
-                        saveAllUsers(users);
-                        admin = newAdmin as any;
+                        const newAdmin = { ...makeAdminUser(), id: adminUserId };
+                        users.push(newAdmin as any);
+                        saveAllUsers(users as any);
                       }
 
                       // Ensure conversation entries exist (mark admin role explicitly)
-                      ensureConversationForUser(user.id, ADMIN_ID, "admin");
+                      ensureConversationForUser(user.id, adminUserId, "admin");
                       ensureConversationForUser(
-                        ADMIN_ID,
+                        adminUserId,
                         user.id,
                         user.role === "sponsor" ? "sponsor" : "user",
                       );
 
-                      // Send message to admin
-                      addMessageBetween(user.id, ADMIN_ID, body);
+                      // Send message to admin (DB-backed when available)
+                      await addMessageBetweenAsync(user.id, adminUserId, body);
 
                       // Refresh and open admin conversation
-                      const convs = getConversationsForUser(user.id);
+                      const convs = await getConversationsForUserAsync(user.id);
                       setConversations(convs);
-                      const adminConv = convs.find((c) => c.otherUserId === ADMIN_ID) || null;
+                      const adminConv = convs.find((c) => c.otherUserId === adminUserId) || null;
                       setSelectedConversation(adminConv);
                       setActiveTab("messages");
 
@@ -585,6 +667,13 @@ export default function Messages() {
                       <Send className="w-4 h-4" />
                     </button>
                   </div>
+                  {/* DB fallback banner */}
+                  {!dbAvailable && (
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md text-red-900 text-sm">
+                      <div className="font-medium">Offline mode</div>
+                      <p className="text-xs mt-1">The app is using a local fallback storage because the database is unavailable. Some features may be limited.</p>
+                    </div>
+                  )}
                 </div>
               </>
             ) : (

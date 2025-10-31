@@ -107,7 +107,7 @@ export default function SponsorRegistration() {
                     type="checkbox"
                     checked={qualifications.includes(qual)}
                     onChange={() => handleQualificationToggle(qual)}
-                    className="w-5 h-5 rounded accent-secondary"
+                    className="w-5 h-5 rounded accent-primary"
                   />
                   <span className="text-foreground">{qual}</span>
                 </label>
@@ -125,7 +125,7 @@ export default function SponsorRegistration() {
                 onChange={(e) =>
                   setYearsOfExperience(parseInt(e.target.value) || 0)
                 }
-                className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-secondary"
+                className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </label>
 
@@ -139,7 +139,7 @@ export default function SponsorRegistration() {
               <button
                 onClick={() => setStep("experience")}
                 disabled={!canProceed()}
-                className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg font-medium hover:bg-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
               </button>
@@ -163,7 +163,7 @@ export default function SponsorRegistration() {
                 onChange={(e) => setCertifications(e.target.value)}
                 placeholder="E.g., Certified Peer Recovery Coach (CPRC), 12-step sponsor, etc."
                 rows={4}
-                className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary"
+                className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </label>
 
@@ -177,7 +177,7 @@ export default function SponsorRegistration() {
               <button
                 onClick={() => setStep("references")}
                 disabled={!canProceed()}
-                className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg font-medium hover:bg-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
               </button>
@@ -212,7 +212,7 @@ export default function SponsorRegistration() {
                     onChange={(e) =>
                       handleReferenceChange(index, "name", e.target.value)
                     }
-                    className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary"
+                    className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   <input
                     type="text"
@@ -225,7 +225,7 @@ export default function SponsorRegistration() {
                         e.target.value,
                       )
                     }
-                    className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary"
+                    className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   <input
                     type="email"
@@ -234,7 +234,7 @@ export default function SponsorRegistration() {
                     onChange={(e) =>
                       handleReferenceChange(index, "email", e.target.value)
                     }
-                    className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary"
+                    className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   <input
                     type="tel"
@@ -243,7 +243,7 @@ export default function SponsorRegistration() {
                     onChange={(e) =>
                       handleReferenceChange(index, "phone", e.target.value)
                     }
-                    className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary"
+                    className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
               </div>
@@ -259,7 +259,7 @@ export default function SponsorRegistration() {
               <button
                 onClick={handleComplete}
                 disabled={!canProceed()}
-                className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg font-medium hover:bg-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Complete Registration
               </button>
@@ -270,8 +270,8 @@ export default function SponsorRegistration() {
       case "complete":
         return (
           <div className="text-center animate-fade-in">
-            <div className="w-16 h-16 rounded-full bg-secondary/10 flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-8 h-8 text-secondary" />
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-8 h-8 text-primary" />
             </div>
             <h1 className="text-3xl font-bold mb-4 text-foreground">
               Application Submitted!
@@ -288,25 +288,25 @@ export default function SponsorRegistration() {
               <h3 className="font-bold text-foreground mb-4">What's Next</h3>
               <ol className="space-y-3 text-sm text-muted-foreground">
                 <li className="flex gap-3">
-                  <span className="font-bold text-secondary flex-shrink-0">
+                  <span className="font-bold text-primary flex-shrink-0">
                     1.
                   </span>
                   <span>Reference verification (3-5 business days)</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="font-bold text-secondary flex-shrink-0">
+                  <span className="font-bold text-primary flex-shrink-0">
                     2.
                   </span>
                   <span>Background check review</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="font-bold text-secondary flex-shrink-0">
+                  <span className="font-bold text-primary flex-shrink-0">
                     3.
                   </span>
                   <span>Sponsor training program (online, 2 weeks)</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="font-bold text-secondary flex-shrink-0">
+                  <span className="font-bold text-primary flex-shrink-0">
                     4.
                   </span>
                   <span>Profile activation and seeker matching</span>
@@ -316,7 +316,7 @@ export default function SponsorRegistration() {
 
             <button
               onClick={() => navigate("/messages")}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-secondary text-secondary-foreground rounded-lg font-medium hover:bg-secondary/90 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
             >
               Go to Messages
               <ChevronRight className="w-4 h-4" />
@@ -328,7 +328,7 @@ export default function SponsorRegistration() {
 
   return (
     <Layout showHeader={true}>
-      <div className="min-h-screen bg-gradient-to-b from-secondary/5 via-background to-background py-12 px-4">
+      <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-background py-12 px-4">
         <div className="max-w-2xl mx-auto">
           {step !== "complete" && (
             <div className="mb-8">
@@ -343,7 +343,7 @@ export default function SponsorRegistration() {
               </div>
               <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-secondary transition-all duration-300"
+                  className="h-full bg-primary transition-all duration-300"
                   style={{ width: `${getProgressPercent()}%` }}
                 />
               </div>

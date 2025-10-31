@@ -124,12 +124,12 @@ export default function Register() {
                   }}
                   className={`p-8 rounded-xl border-2 transition-all text-left ${
                     selectedRole === "sponsor"
-                      ? "border-secondary bg-secondary/5"
-                      : "border-border bg-muted/30 hover:border-secondary/50"
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-muted/30 hover:border-primary/50"
                   }`}
                 >
-                  <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center mb-4">
-                    <Users className="w-6 h-6 text-secondary" />
+                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mb-4">
+                    <Users className="w-6 h-6 text-primary" />
                   </div>
                   <h2 className="text-xl font-bold text-foreground mb-2">
                     I Want to Sponsor

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_ID } from "@/config/admin";
+import { getAllUsersAsync } from "@/lib/relations";
 
 export type UserRole = "user" | "sponsor" | "admin";
 
@@ -40,15 +41,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize auth state from localStorage
   useEffect(() => {
-    const storedUser = localStorage.getItem("sobrUser");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        localStorage.removeItem("sobrUser");
+    (async () => {
+      const storedUser = localStorage.getItem("sobrUser");
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          // Try to refresh from server
+          try {
+            const users = await getAllUsersAsync();
+            const remote = users.find((u: any) => u.id === parsed.id || u.email === parsed.email);
+            if (remote) {
+              // Prefer the DB UUID and server-sourced fields
+              const merged = { 
+                ...parsed, 
+                id: remote.id || parsed.id,
+                displayName: remote.displayName || parsed.displayName, 
+                role: remote.role || parsed.role, 
+                vetted: remote.vetted ?? parsed.vetted 
+              } as any;
+              setUser(merged);
+              localStorage.setItem("sobrUser", JSON.stringify(merged));
+            } else {
+              setUser(parsed);
+            }
+          } catch {
+            setUser(parsed);
+          }
+        } catch (e) {
+          localStorage.removeItem("sobrUser");
+        }
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    })();
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -69,29 +93,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const users = JSON.parse(localStorage.getItem("sobrUsers") || "[]");
-    const foundUser = users.find(
-      (u: any) => u.email === email && u.password === password,
-    );
+    // First try to find a matching local user record (for dev passwords)
+    const localUsers = JSON.parse(localStorage.getItem("sobrUsers") || "[]");
+    const foundLocal = localUsers.find((u: any) => u.email === email && u.password === password);
 
-    if (!foundUser) {
+    if (!foundLocal) {
       throw new Error("Invalid email or password");
     }
 
-    const userProfile: UserProfile = {
-      id: foundUser.id,
-      email: foundUser.email,
-      displayName: foundUser.displayName,
-      role: foundUser.role,
-      createdAt: foundUser.createdAt,
-      qualifications: foundUser.qualifications,
-      yearsOfExperience: foundUser.yearsOfExperience,
-      vetted: foundUser.vetted,
-      recoveryGoals: foundUser.recoveryGoals,
+    // Build profile from local data then merge remote data when available
+    const baseProfile: UserProfile = {
+      id: foundLocal.id,
+      email: foundLocal.email,
+      displayName: foundLocal.displayName,
+      role: foundLocal.role,
+      createdAt: foundLocal.createdAt,
+      qualifications: foundLocal.qualifications,
+      yearsOfExperience: foundLocal.yearsOfExperience,
+      vetted: foundLocal.vetted,
+      recoveryGoals: foundLocal.recoveryGoals,
     };
 
-    setUser(userProfile);
-    localStorage.setItem("sobrUser", JSON.stringify(userProfile));
+    try {
+      const users = await getAllUsersAsync();
+      const remote = users.find((u: any) => u.email === email || u.id === baseProfile.id);
+      if (remote) {
+        // Adopt the DB UUID to ensure server writes/read use correct ids
+        const merged = { 
+          ...baseProfile, 
+          id: remote.id || baseProfile.id,
+          displayName: remote.displayName || baseProfile.displayName, 
+          role: remote.role || baseProfile.role, 
+          vetted: remote.vetted ?? baseProfile.vetted 
+        } as any;
+        setUser(merged);
+        localStorage.setItem("sobrUser", JSON.stringify(merged));
+        return;
+      }
+    } catch {
+      // ignore and continue with local profile
+    }
+
+    setUser(baseProfile);
+    localStorage.setItem("sobrUser", JSON.stringify(baseProfile));
   };
 
   const register = async (
@@ -122,9 +166,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     users.push(newUser);
     localStorage.setItem("sobrUsers", JSON.stringify(users));
 
-    // Log them in after registration
+    // Create user in DB first to get UUID
+    try {
+      const res = await fetch('/api/users/upsert', { 
+        method: 'POST', 
+        headers: { 'content-type': 'application/json' }, 
+        body: JSON.stringify({ 
+          email: newUser.email, 
+          full_name: newUser.displayName,
+          metadata: { 
+            role: newUser.role,
+            qualifications: newUser.qualifications,
+            yearsOfExperience: newUser.yearsOfExperience,
+            vetted: newUser.vetted,
+            recoveryGoals: newUser.recoveryGoals
+          }
+        }) 
+      });
+      if (!res.ok) throw new Error('Failed to create user');
+      
+      const data = await res.json();
+      if (!data.ok || !data.user?.id) throw new Error('No user id returned');
+      
+      localStorage.setItem('sobr_db_available', '1');
+      newUser.id = data.user.id; // Use DB-assigned UUID
+    } catch (err) {
+      localStorage.setItem('sobr_db_available', '0');
+      throw new Error('Failed to register user - please try again');
+    }
+
+    // Log them in after registration with DB UUID
     const userProfile: UserProfile = {
-      id: newUser.id,
+      id: newUser.id, // DB-assigned UUID
       email: newUser.email,
       displayName: newUser.displayName,
       role: newUser.role,
@@ -157,6 +230,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         users[userIndex] = { ...users[userIndex], ...updates };
         localStorage.setItem("sobrUsers", JSON.stringify(users));
       }
+
+      // Persist profile update to server
+      (async () => {
+        try {
+          const res = await fetch('/api/users/upsert', { 
+            method: 'POST', 
+            headers: { 'content-type': 'application/json' }, 
+            body: JSON.stringify({ 
+              id: updatedUser.id, // Use existing DB UUID
+              email: updatedUser.email, 
+              full_name: updatedUser.displayName, 
+              metadata: { 
+                role: updatedUser.role,
+                qualifications: updatedUser.qualifications, 
+                yearsOfExperience: updatedUser.yearsOfExperience,
+                vetted: updatedUser.vetted,
+                recoveryGoals: updatedUser.recoveryGoals
+              }
+            }) 
+          });
+          if (res.ok) {
+            localStorage.setItem('sobr_db_available', '1');
+          } else {
+            localStorage.setItem('sobr_db_available', '0');
+          }
+        } catch (err) {
+          localStorage.setItem('sobr_db_available', '0');
+          // ignore but flag DB as unavailable
+        }
+      })();
     }
   };
 
