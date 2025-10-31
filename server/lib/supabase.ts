@@ -146,19 +146,32 @@ export async function fetchIncomingRequestsForSponsor(sponsorId: string): Promis
 
 export async function addConnectionRequest(userId: string, sponsorId: string): Promise<any> {
   const sb = getSupabaseClient();
-  const { data, error } = await sb.from("connections").insert([{ user_id: userId, sponsor_id: sponsorId, status: "pending" }]);
+  // Idempotent create: if a connection already exists, return it instead of erroring
+  const existing = await fetchConnection(userId, sponsorId);
+  if (existing) return existing;
+
+  const { data, error } = await sb
+    .from("connections")
+    .insert([{ user_id: userId, sponsor_id: sponsorId, status: "pending" }])
+    .select();
   if (error) throw error;
-  return (data && data[0]) || null;
+  const row = (data && data[0]) || null;
+  try {
+    if (row) await addAuditLog(userId, 'connection.requested', 'connection', row.id, { userId, sponsorId });
+  } catch {}
+  return row;
 }
 
 export async function acceptConnection(userId: string, sponsorId: string): Promise<void> {
   const sb = getSupabaseClient();
   await sb.from("connections").update({ status: "accepted" }).eq("user_id", userId).eq("sponsor_id", sponsorId);
+  try { await addAuditLog(sponsorId, 'connection.accepted', 'connection', `${userId}:${sponsorId}`, { userId, sponsorId }); } catch {}
 }
 
 export async function declineConnection(userId: string, sponsorId: string): Promise<void> {
   const sb = getSupabaseClient();
   await sb.from("connections").delete().eq("user_id", userId).eq("sponsor_id", sponsorId);
+  try { await addAuditLog(sponsorId, 'connection.declined', 'connection', `${userId}:${sponsorId}`, { userId, sponsorId }); } catch {}
 }
 
 export async function fetchConnection(userId: string, sponsorId: string): Promise<any | null> {
@@ -233,9 +246,177 @@ export async function fetchMessagesForUser(userId: string): Promise<any[]> {
 
 export async function insertMessage(fromUserId: string, toUserId: string, body: string): Promise<any> {
   const sb = getSupabaseClient();
-  const { data, error } = await sb.from("messages").insert([{ from_user_id: fromUserId, to_user_id: toUserId, body }]);
+  const { data, error } = await sb
+    .from("messages")
+    .insert([{ from_user_id: fromUserId, to_user_id: toUserId, body }])
+    .select();
   if (error) throw error;
-  return (data && data[0]) || null;
+  const row = (data && data[0]) || null;
+  try { if (row) await addAuditLog(fromUserId, 'message.sent', 'message', row.id, { to_user_id: toUserId }); } catch {}
+  return row;
+}
+
+export async function markMessagesRead(toUserId: string, fromUserId: string): Promise<number> {
+  const sb = getSupabaseClient();
+  const { data, error } = await sb
+    .from('messages')
+    .update({ read: true })
+    .eq('to_user_id', toUserId)
+    .eq('from_user_id', fromUserId)
+    .eq('read', false)
+    .select('id');
+  if (error) throw error;
+  const count = (data || []).length;
+  try {
+    if (count > 0) await addAuditLog(toUserId, 'messages.read', 'message', `${fromUserId}->${toUserId}`, { userId: toUserId, fromUserId, count });
+  } catch {}
+  return count;
+}
+
+export async function getUserRoleByUserId(userId: string): Promise<string | null> {
+  const sb = getSupabaseClient();
+  const { data, error } = await sb
+    .from('users')
+    .select('id, role_id, roles:role_id(name)')
+    .eq('id', userId)
+    .limit(1);
+  if (error) throw error;
+  const row = (data && (data as any[])[0]) || null;
+  return row?.roles?.name ?? null;
+}
+
+export async function countConnectionsForSponsor(sponsorId: string, status: 'pending'|'accepted'|'declined'): Promise<number> {
+  const sb = getSupabaseClient();
+  const { count, error } = await sb
+    .from('connections')
+    .select('id', { count: 'exact', head: true })
+    .eq('sponsor_id', sponsorId)
+    .eq('status', status);
+  if (error) throw error;
+  return count || 0;
+}
+
+export async function countConnectionsForUser(userId: string, status: 'pending'|'accepted'|'declined'): Promise<number> {
+  const sb = getSupabaseClient();
+  const { count, error } = await sb
+    .from('connections')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('status', status);
+  if (error) throw error;
+  return count || 0;
+}
+
+export async function countUnreadMessagesForUser(userId: string): Promise<number> {
+  const sb = getSupabaseClient();
+  const { count, error } = await sb
+    .from('messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('to_user_id', userId)
+    .eq('read', false);
+  if (error) throw error;
+  return count || 0;
+}
+
+export async function getRoleIdByName(roleName: string): Promise<number | null> {
+  const sb = getSupabaseClient();
+  const { data, error } = await sb.from('roles').select('id').eq('name', roleName).limit(1);
+  if (error) throw error;
+  return (data && data[0]?.id) || null;
+}
+
+export async function countUsersByRole(roleName: string): Promise<number> {
+  const sb = getSupabaseClient();
+  const roleId = await getRoleIdByName(roleName);
+  if (!roleId) return 0;
+  const { count, error } = await sb
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('role_id', roleId);
+  if (error) throw error;
+  return count || 0;
+}
+
+export async function countAllUsers(): Promise<number> {
+  const sb = getSupabaseClient();
+  const { count, error } = await sb.from('users').select('id', { count: 'exact', head: true });
+  if (error) throw error;
+  return count || 0;
+}
+
+export async function countMessagesLast24h(): Promise<number> {
+  const sb = getSupabaseClient();
+  const { count, error } = await sb
+    .from('messages')
+    .select('id', { count: 'exact', head: true })
+    .gte('sent_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+  if (error) throw error;
+  return count || 0;
+}
+
+export async function countSponsorsPendingApproval(): Promise<number> {
+  const sb = getSupabaseClient();
+  const sponsorRoleId = await getRoleIdByName('sponsor');
+  if (!sponsorRoleId) return 0;
+  const { count, error } = await sb
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('role_id', sponsorRoleId)
+    .is('metadata->>vetted', null);
+  if (error) {
+    // Fallback: join sponsor_backgrounds where verified is false or null
+    const { count: count2 } = await sb
+      .from('sponsor_backgrounds')
+      .select('id', { count: 'exact', head: true })
+      .eq('verified', false);
+    return count2 || 0;
+  }
+  return count || 0;
+}
+
+export async function countUnreadMessagesFromSponsorsSystemwide(): Promise<number> {
+  const sb = getSupabaseClient();
+  const sponsorRoleId = await getRoleIdByName('sponsor');
+  if (!sponsorRoleId) return 0;
+  const { count, error } = await sb
+    .from('messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('read', false)
+    .in(
+      'from_user_id',
+      (
+        (
+          await sb.from('users').select('id').eq('role_id', sponsorRoleId)
+        ).data || []
+      ).map((u: any) => u.id)
+    );
+  if (error) throw error;
+  return count || 0;
+}
+
+export async function countAvailableSponsors(): Promise<number> {
+  const sb = getSupabaseClient();
+  const sponsorRoleId = await getRoleIdByName('sponsor');
+  if (!sponsorRoleId) return 0;
+  // Consider vetted sponsors only (verified in sponsor_backgrounds)
+  const { data: sponsors } = await sb.from('users').select('id').eq('role_id', sponsorRoleId);
+  const sponsorIds = (sponsors || []).map((s: any) => s.id);
+  if (sponsorIds.length === 0) return 0;
+  const { count, error } = await sb
+    .from('sponsor_backgrounds')
+    .select('id', { count: 'exact', head: true })
+    .in('sponsor_user_id', sponsorIds)
+    .eq('verified', true);
+  if (error) throw error;
+  return count || 0;
+}
+
+// Audit logs
+export async function addAuditLog(actor_user_id: string | null, action: string, resource_type: string, resource_id: string, metadata?: any) {
+  const sb = getSupabaseClient();
+  const payload: any = { actor_user_id, action, resource_type, resource_id, metadata: metadata ?? null };
+  const { error } = await sb.from('audit_logs').insert([payload]);
+  if (error) throw error;
 }
 
 // --- Password helpers (PoC before migrating to Supabase Auth) ---
@@ -259,7 +440,7 @@ function verifyPasswordHash(password: string, stored: string): boolean {
 }
 
 // Upsert a user record into the users table. Accepts id (optional), email, full_name, optional password and metadata.
-export async function upsertUser(payload: { id?: string; email: string; full_name?: string; password?: string; metadata?: any } ) {
+export async function upsertUser(payload: { id?: string; email: string; full_name?: string; password?: string; metadata?: any; role?: string } ) {
   const sb = getSupabaseClient();
   const record: any = { email: payload.email };
   // If caller provided an id ensure it's a valid UUID before including it.
@@ -272,19 +453,23 @@ export async function upsertUser(payload: { id?: string; email: string; full_nam
     }
   }
   if (payload.full_name) record.full_name = payload.full_name;
-  if (payload.metadata) record.metadata = payload.metadata;
+  if (payload.metadata) {
+    // Do not persist role inside metadata; keep only column with FK to roles
+    const { role: _role, ...rest } = payload.metadata || {};
+    record.metadata = rest;
+  }
   if (payload.password) record.password_hash = makePasswordHash(payload.password);
 
-  // If metadata.role is provided, lookup the role_id and assign it
-  if (payload.metadata && payload.metadata.role) {
+  // If role is provided (top-level), lookup the role_id and assign it
+  if (payload.role) {
     try {
-      const roleName = payload.metadata.role;
+      const roleName = payload.role;
       const rolesRes = await sb.from('roles').select('id').eq('name', roleName).limit(1);
       if (rolesRes.data && rolesRes.data.length > 0) {
         record.role_id = rolesRes.data[0].id;
       }
     } catch (err) {
-      console.warn(`[upsertUser] failed to lookup role: ${payload.metadata.role}`, err);
+      console.warn(`[upsertUser] failed to lookup role: ${payload.role}`, err);
     }
   }
 

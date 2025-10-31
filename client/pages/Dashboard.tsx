@@ -4,22 +4,36 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { MessageSquare, UserCircle, Users, Clock, CheckCircle, AlertCircle } from "lucide-react";
 
-interface DashboardStats {
+type SponsorStats = {
+  role: 'sponsor';
+  connectionsAccepted: number;
+  connectionsPending: number;
   unreadMessages: number;
-  pendingConnections: number;
-  activeConnections: number;
-  recentActivity: { type: string; description: string; timestamp: string }[];
-}
+};
+
+type AdminStats = {
+  role: 'admin';
+  totalUsers: number;
+  totalSponsors: number;
+  messagesLast24h: number;
+  sponsorsPendingApproval: number;
+  unreadMessagesFromSponsors: number;
+};
+
+type UserStats = {
+  role: 'user';
+  availableSponsors: number;
+  unreadMessages: number;
+  connectionsAccepted: number;
+  connectionsPending: number;
+};
+
+type DashboardStats = SponsorStats | AdminStats | UserStats;
 
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState<DashboardStats>({
-    unreadMessages: 0,
-    pendingConnections: 0,
-    activeConnections: 0,
-    recentActivity: [],
-  });
+  const [stats, setStats] = useState<DashboardStats | null>(null);
 
   if (!user) {
     navigate("/login");
@@ -27,24 +41,24 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    // TODO: Fetch actual stats from API
-    // For now, using placeholder data
-    setStats({
-      unreadMessages: 3,
-      pendingConnections: 1,
-      activeConnections: 5,
-      recentActivity: [
-        { type: "message", description: "New message from Sarah", timestamp: "2 hours ago" },
-        { type: "connection", description: "Connection request approved", timestamp: "5 hours ago" },
-        { type: "message", description: "New message from John", timestamp: "1 day ago" },
-      ],
-    });
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/dashboard/metrics?userId=${encodeURIComponent(user.id)}`);
+        if (!res.ok) throw new Error('metrics failed');
+        const data = await res.json();
+        if (mounted) setStats(data as DashboardStats);
+      } catch {
+        if (mounted) setStats(null);
+      }
+    })();
+    return () => { mounted = false };
   }, [user.id]);
 
   const quickActions = [
     {
       title: "Messages",
-      description: `${stats.unreadMessages} unread`,
+      description: `${(stats && 'unreadMessages' in stats) ? (stats as any).unreadMessages : 0} unread`,
       icon: MessageSquare,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10",
@@ -58,15 +72,35 @@ export default function Dashboard() {
       bgColor: "bg-green-500/10",
       action: () => navigate("/profile"),
     },
-    {
-      title: user.role === "sponsor" ? "View Seekers" : "Find Sponsors",
-      description: user.role === "sponsor" ? "Connect with seekers" : "Browse available sponsors",
-      icon: Users,
-      color: "text-purple-500",
-      bgColor: "bg-purple-500/10",
-      action: () => navigate("/messages"),
-    },
+    // Only show a seeker/sponsor discovery action for non-admins
+    ...(user.role === 'sponsor' || user.role === 'user'
+      ? [{
+          title: user.role === 'sponsor' ? 'View Seekers' : 'Find Sponsors',
+          description: user.role === 'sponsor' ? 'Connect with seekers' : 'Browse available sponsors',
+          icon: Users,
+          color: 'text-purple-500',
+          bgColor: 'bg-purple-500/10',
+          action: () => navigate('/messages'),
+        }]
+      : []),
   ];
+
+  // Recent activity state
+  const [activity, setActivity] = useState<{ type: string; description: string; timestamp: string }[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/activity/recent?userId=${encodeURIComponent(user.id)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (mounted) setActivity(data || []);
+        }
+      } catch {}
+    })();
+    return () => { mounted = false };
+  }, [user.id]);
 
   return (
     <Layout showHeader={true}>
@@ -120,38 +154,122 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-card rounded-lg border border-border p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Unread Messages</p>
-                  <p className="text-2xl font-semibold text-foreground mt-1">{stats.unreadMessages}</p>
-                </div>
-                <MessageSquare className="w-8 h-8 text-blue-500" />
-              </div>
+          {/* Quick Stats by Role */}
+          {stats && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {stats.role === 'sponsor' && (
+                <>
+                  <div className="bg-card rounded-lg border border-border p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Unread Messages</p>
+                        <p className="text-2xl font-semibold text-foreground mt-1">{(stats as SponsorStats).unreadMessages}</p>
+                      </div>
+                      <MessageSquare className="w-8 h-8 text-blue-500" />
+                    </div>
+                  </div>
+                  <div className="bg-card rounded-lg border border-border p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Pending Requests</p>
+                        <p className="text-2xl font-semibold text-foreground mt-1">{(stats as SponsorStats).connectionsPending}</p>
+                      </div>
+                      <Clock className="w-8 h-8 text-yellow-500" />
+                    </div>
+                  </div>
+                  <div className="bg-card rounded-lg border border-border p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Active Connections</p>
+                        <p className="text-2xl font-semibold text-foreground mt-1">{(stats as SponsorStats).connectionsAccepted}</p>
+                      </div>
+                      <Users className="w-8 h-8 text-green-500" />
+                    </div>
+                  </div>
+                </>
+              )}
+              {stats.role === 'admin' && (
+                <>
+                  <div className="bg-card rounded-lg border border-border p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Users</p>
+                        <p className="text-2xl font-semibold text-foreground mt-1">{(stats as AdminStats).totalUsers}</p>
+                      </div>
+                      <Users className="w-8 h-8 text-primary" />
+                    </div>
+                  </div>
+                  <div className="bg-card rounded-lg border border-border p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Sponsors</p>
+                        <p className="text-2xl font-semibold text-foreground mt-1">{(stats as AdminStats).totalSponsors}</p>
+                      </div>
+                      <Users className="w-8 h-8 text-green-500" />
+                    </div>
+                  </div>
+                  <div className="bg-card rounded-lg border border-border p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Messages (24h)</p>
+                        <p className="text-2xl font-semibold text-foreground mt-1">{(stats as AdminStats).messagesLast24h}</p>
+                      </div>
+                      <MessageSquare className="w-8 h-8 text-blue-500" />
+                    </div>
+                  </div>
+                  <div className="bg-card rounded-lg border border-border p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Sponsors Pending</p>
+                        <p className="text-2xl font-semibold text-foreground mt-1">{(stats as AdminStats).sponsorsPendingApproval}</p>
+                      </div>
+                      <Clock className="w-8 h-8 text-yellow-500" />
+                    </div>
+                  </div>
+                  <div className="bg-card rounded-lg border border-border p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Unread From Sponsors</p>
+                        <p className="text-2xl font-semibold text-foreground mt-1">{(stats as AdminStats).unreadMessagesFromSponsors}</p>
+                      </div>
+                      <MessageSquare className="w-8 h-8 text-purple-500" />
+                    </div>
+                  </div>
+                </>
+              )}
+              {stats.role === 'user' && (
+                <>
+                  <div className="bg-card rounded-lg border border-border p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Available Sponsors</p>
+                        <p className="text-2xl font-semibold text-foreground mt-1">{(stats as UserStats).availableSponsors}</p>
+                      </div>
+                      <Users className="w-8 h-8 text-green-500" />
+                    </div>
+                  </div>
+                  <div className="bg-card rounded-lg border border-border p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Unread Messages</p>
+                        <p className="text-2xl font-semibold text-foreground mt-1">{(stats as UserStats).unreadMessages}</p>
+                      </div>
+                      <MessageSquare className="w-8 h-8 text-blue-500" />
+                    </div>
+                  </div>
+                  <div className="bg-card rounded-lg border border-border p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Active Connections</p>
+                        <p className="text-2xl font-semibold text-foreground mt-1">{(stats as UserStats).connectionsAccepted}</p>
+                      </div>
+                      <Users className="w-8 h-8 text-primary" />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
-
-            <div className="bg-card rounded-lg border border-border p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending Requests</p>
-                  <p className="text-2xl font-semibold text-foreground mt-1">{stats.pendingConnections}</p>
-                </div>
-                <Clock className="w-8 h-8 text-yellow-500" />
-              </div>
-            </div>
-
-            <div className="bg-card rounded-lg border border-border p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Active Connections</p>
-                  <p className="text-2xl font-semibold text-foreground mt-1">{stats.activeConnections}</p>
-                </div>
-                <Users className="w-8 h-8 text-green-500" />
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* Quick Actions */}
           <div className="mb-6">
@@ -176,20 +294,20 @@ export default function Dashboard() {
           {/* Recent Activity */}
           <div className="bg-card rounded-lg border border-border p-6">
             <h2 className="text-lg font-medium text-foreground mb-4">Recent Activity</h2>
-            {stats.recentActivity.length > 0 ? (
+            {activity.length > 0 ? (
               <div className="space-y-3">
-                {stats.recentActivity.map((activity, idx) => (
+                {activity.map((a, idx) => (
                   <div key={idx} className="flex items-start gap-3 p-3 rounded-md hover:bg-muted/50 transition-colors">
-                    <div className={`w-8 h-8 rounded-full ${activity.type === "message" ? "bg-blue-500/10" : "bg-green-500/10"} flex items-center justify-center flex-shrink-0`}>
-                      {activity.type === "message" ? (
+                    <div className={`w-8 h-8 rounded-full ${a.type === 'message' ? 'bg-blue-500/10' : 'bg-green-500/10'} flex items-center justify-center flex-shrink-0`}>
+                      {a.type === 'message' ? (
                         <MessageSquare className="w-4 h-4 text-blue-500" />
                       ) : (
                         <Users className="w-4 h-4 text-green-500" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground">{activity.description}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{activity.timestamp}</p>
+                      <p className="text-sm text-foreground">{a.description}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{new Date(a.timestamp).toLocaleString()}</p>
                     </div>
                   </div>
                 ))}

@@ -7,7 +7,8 @@ export type AppConfig = {
 
 export async function fetchAppConfig(): Promise<AppConfig> {
   try {
-    const res = await fetch('/api/config');
+    const origin = (globalThis as any).location?.origin || '';
+    const res = await fetch(`${origin}/api/config`);
     if (!res.ok) throw new Error('failed to fetch config');
     const json = await res.json();
     return {

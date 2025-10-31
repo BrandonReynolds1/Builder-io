@@ -9,8 +9,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
 import { checkDbHealth } from "./lib/health";
-import { getUserById, getAllUsers, saveAllUsers } from "@/lib/relations";
-import { ADMIN_ID, makeAdminUser } from "@/config/admin";
 import Index from "./pages/Index";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
@@ -50,20 +48,7 @@ const App = () => {
     })();
   }, []);
 
-  // Seed admin user once at startup if missing (development convenience)
-  useEffect(() => {
-    try {
-      const existing = getUserById(ADMIN_ID);
-      if (!existing) {
-        const users = getAllUsers();
-        users.push(makeAdminUser());
-        saveAllUsers(users);
-        console.info("Seeded admin user:", ADMIN_ID);
-      }
-    } catch (e) {
-      // ignore in non-browser environments
-    }
-  }, []);
+  // DB-only: no local admin seeding
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -83,6 +68,7 @@ const App = () => {
               <Route path="/user-needs" element={<UserNeeds />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/profile" element={<Profile />} />
+              {false && <Route path="/logo-preview" element={<div />} />} 
               <Route path="/messages" element={<Messages />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="/admin" element={<Admin />} />

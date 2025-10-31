@@ -3,13 +3,9 @@ import { Layout } from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   getPendingSponsorsAsync,
-  approveSponsor as approveSponsorFn,
   approveSponsorAsync,
-  declineSponsor as declineSponsorFn,
   declineSponsorAsync,
-  bulkApproveSponsors as bulkApproveFn,
   bulkApproveSponsorsAsync,
-  searchPendingSponsors,
   RawUser,
 } from "@/lib/relations";
 

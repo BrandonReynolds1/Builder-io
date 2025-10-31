@@ -1,5 +1,5 @@
 import { RequestHandler } from "express";
-import { fetchMessagesForUser, insertMessage } from "../lib/supabase";
+import { fetchMessagesForUser, insertMessage, markMessagesRead } from "../lib/supabase";
 
 export const handleGetMessagesForUser: RequestHandler = async (req, res) => {
   try {
@@ -20,5 +20,17 @@ export const handlePostMessage: RequestHandler = async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'failed to insert message' });
+  }
+};
+
+export const handleMarkRead: RequestHandler = async (req, res) => {
+  try {
+    const { userId, otherUserId } = req.body || {};
+    if (!userId || !otherUserId) return res.status(400).json({ error: 'userId and otherUserId required' });
+    const updated = await markMessagesRead(userId, otherUserId);
+    return res.status(200).json({ ok: true, updated });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'failed to mark read' });
   }
 };

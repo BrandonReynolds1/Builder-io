@@ -5,7 +5,9 @@ import { handleDemo } from "./routes/demo";
 import { handleConfig } from "./routes/config";
 import { handleGetUsers, handleApproveSponsor, handleDeclineSponsor, handleBulkApprove, handleUpsertUser, handleLogin, handleChangePassword } from "./routes/users";
 import { handleGetIncomingForSponsor, handleAddConnection, handleAcceptConnection, handleDeclineConnection, handleGetConnectionStatus } from "./routes/connections";
-import { handleGetMessagesForUser, handlePostMessage } from "./routes/messages";
+import { handleGetMessagesForUser, handlePostMessage, handleMarkRead } from "./routes/messages";
+import { handleGetDashboardMetrics } from "./routes/dashboard";
+import { handleGetRecentActivity } from "./routes/activity";
 import { handleHealth } from "./routes/health";
 
 export function createServer() {
@@ -40,6 +42,9 @@ export function createServer() {
 
   app.get("/api/messages/user/:id", handleGetMessagesForUser);
   app.post("/api/messages", handlePostMessage);
+  app.post("/api/messages/mark-read", handleMarkRead);
+  app.get("/api/dashboard/metrics", handleGetDashboardMetrics);
+  app.get("/api/activity/recent", handleGetRecentActivity);
   app.post("/api/users/upsert", handleUpsertUser);
   app.post("/api/users/login", handleLogin);
   app.post("/api/users/change-password", handleChangePassword);

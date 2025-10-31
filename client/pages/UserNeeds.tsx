@@ -106,6 +106,7 @@ export default function UserNeeds() {
   const completeOnboarding = () => {
     updateUserProfile({
       recoveryGoals: goals,
+      onboardingUrgency: urgency,
     });
     setStep("complete");
   };

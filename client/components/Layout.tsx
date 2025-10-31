@@ -45,7 +45,7 @@ function Header() {
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
       <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
-          {/* SOBR Logo - Custom SVG from Figma */}
+          {/* SOBR Logo - Original boat/sail design */}
           <svg
             width="48"
             height="48"

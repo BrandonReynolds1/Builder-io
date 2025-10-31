@@ -6,6 +6,13 @@ import { MemoryRouter } from "react-router-dom";
 import UserNeeds from "../UserNeeds";
 import { vi } from "vitest";
 
+// Avoid network in config fetch: return empty priorities to use defaults
+vi.mock("@/lib/config", () => {
+  return {
+    fetchAppConfig: async () => ({ priorities: [] }),
+  };
+});
+
 // Mock the auth context to provide a stable user synchronously
 vi.mock("@/contexts/AuthContext", () => {
   return {
@@ -71,7 +78,7 @@ describe("Crisis modal flow in UserNeeds", () => {
     expect(modalTitle).toBeTruthy();
 
     // Continue button should be present and disabled initially
-    const continueBtn = screen.getByText(/^Continue$/i);
+  const continueBtn = screen.getByText(/^Continue Registration$/i);
     expect(continueBtn).toBeTruthy();
     expect((continueBtn as HTMLButtonElement).disabled).toBe(true);
 
