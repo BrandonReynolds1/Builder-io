@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { randomBytes, scryptSync, timingSafeEqual } from "crypto";
 
 let supabase: SupabaseClient | null = null;
 
@@ -160,6 +161,18 @@ export async function declineConnection(userId: string, sponsorId: string): Prom
   await sb.from("connections").delete().eq("user_id", userId).eq("sponsor_id", sponsorId);
 }
 
+export async function fetchConnection(userId: string, sponsorId: string): Promise<any | null> {
+  const sb = getSupabaseClient();
+  const { data, error } = await sb
+    .from('connections')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('sponsor_id', sponsorId)
+    .limit(1);
+  if (error) throw error;
+  return (data && data[0]) || null;
+}
+
 // Messages helpers
 export async function fetchMessagesForUser(userId: string): Promise<any[]> {
   const sb = getSupabaseClient();
@@ -225,8 +238,28 @@ export async function insertMessage(fromUserId: string, toUserId: string, body: 
   return (data && data[0]) || null;
 }
 
-// Upsert a user record into the users table. Accepts id (optional), email, full_name and metadata.
-export async function upsertUser(payload: { id?: string; email: string; full_name?: string; metadata?: any } ) {
+// --- Password helpers (PoC before migrating to Supabase Auth) ---
+function makePasswordHash(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const buf = scryptSync(password, salt, 64);
+  const hash = Buffer.from(buf).toString("hex");
+  return `scrypt:${salt}:${hash}`;
+}
+
+function verifyPasswordHash(password: string, stored: string): boolean {
+  try {
+    const [scheme, salt, hash] = stored.split(":");
+    if (scheme !== "scrypt" || !salt || !hash) return false;
+    const buf = scryptSync(password, salt, 64);
+    const candidate = Buffer.from(buf).toString("hex");
+    return timingSafeEqual(Buffer.from(candidate, "utf8"), Buffer.from(hash, "utf8"));
+  } catch {
+    return false;
+  }
+}
+
+// Upsert a user record into the users table. Accepts id (optional), email, full_name, optional password and metadata.
+export async function upsertUser(payload: { id?: string; email: string; full_name?: string; password?: string; metadata?: any } ) {
   const sb = getSupabaseClient();
   const record: any = { email: payload.email };
   // If caller provided an id ensure it's a valid UUID before including it.
@@ -240,6 +273,7 @@ export async function upsertUser(payload: { id?: string; email: string; full_nam
   }
   if (payload.full_name) record.full_name = payload.full_name;
   if (payload.metadata) record.metadata = payload.metadata;
+  if (payload.password) record.password_hash = makePasswordHash(payload.password);
 
   // If metadata.role is provided, lookup the role_id and assign it
   if (payload.metadata && payload.metadata.role) {
@@ -264,4 +298,45 @@ export async function upsertUser(payload: { id?: string; email: string; full_nam
     console.info(`[upsertUser] ok: ${dbUser.id} (input: ${payload.id || 'none'}), email: ${dbUser.email}`);
   }
   return dbUser;
+}
+
+export async function verifyUserLogin(email: string, password: string): Promise<{ id: string; email: string; full_name?: string } | null> {
+  const sb = getSupabaseClient();
+  const { data, error } = await sb
+    .from('users')
+    .select('id,email,full_name,password_hash')
+    .eq('email', email)
+    .limit(1);
+  if (error) throw error;
+  const row = (data && data[0]) || null;
+  if (!row || !row.password_hash) return null;
+  const ok = verifyPasswordHash(password, row.password_hash);
+  if (!ok) return null;
+  return { id: row.id, email: row.email, full_name: row.full_name };
+}
+
+export async function changeUserPassword(userId: string, oldPassword: string, newPassword: string): Promise<boolean> {
+  const sb = getSupabaseClient();
+  const { data, error } = await sb
+    .from('users')
+    .select('id,password_hash')
+    .eq('id', userId)
+    .limit(1);
+  if (error) throw error;
+  const row = (data && data[0]) || null;
+  if (!row || !row.password_hash) return false;
+  
+  // Verify old password
+  const ok = verifyPasswordHash(oldPassword, row.password_hash);
+  if (!ok) return false;
+  
+  // Hash and update new password
+  const newHash = makePasswordHash(newPassword);
+  const { error: updateError } = await sb
+    .from('users')
+    .update({ password_hash: newHash })
+    .eq('id', userId);
+  
+  if (updateError) throw updateError;
+  return true;
 }

@@ -18,6 +18,8 @@ import SponsorRegistration from "./pages/SponsorRegistration";
 import UserNeeds from "./pages/UserNeeds";
 import Messages from "./pages/Messages";
 import Admin from "./pages/Admin";
+import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,6 +81,8 @@ const App = () => {
                 element={<SponsorRegistration />}
               />
               <Route path="/user-needs" element={<UserNeeds />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="/messages" element={<Messages />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="/admin" element={<Admin />} />

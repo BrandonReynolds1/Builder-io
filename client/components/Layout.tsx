@@ -91,6 +91,12 @@ function Header() {
           {isAuthenticated ? (
             <>
               <Link
+                to="/dashboard"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition-colors text-sm text-foreground"
+              >
+                Dashboard
+              </Link>
+              <Link
                 to="/messages"
                 className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition-colors text-sm text-foreground"
               >
@@ -155,11 +161,28 @@ function Header() {
           {isAuthenticated ? (
             <>
               <Link
+                to="/dashboard"
+                className="block px-4 py-2 rounded-lg hover:bg-muted transition-colors text-foreground"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Dashboard
+              </Link>
+              <Link
                 to="/messages"
                 className="block px-4 py-2 rounded-lg hover:bg-muted transition-colors text-foreground"
+                onClick={() => setMobileMenuOpen(false)}
               >
                 Messages
               </Link>
+              {user?.role === "admin" && (
+                <Link
+                  to="/admin"
+                  className="block px-4 py-2 rounded-lg hover:bg-muted transition-colors text-foreground"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Admin
+                </Link>
+              )}
               <div className="px-4 py-2 text-sm text-muted-foreground">
                 <div className="break-words">{user?.displayName} ({user?.role})</div>
               </div>

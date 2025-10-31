@@ -3,8 +3,8 @@ import express from "express";
 import cors from "cors";
 import { handleDemo } from "./routes/demo";
 import { handleConfig } from "./routes/config";
-import { handleGetUsers, handleApproveSponsor, handleDeclineSponsor, handleBulkApprove, handleUpsertUser } from "./routes/users";
-import { handleGetIncomingForSponsor, handleAddConnection, handleAcceptConnection, handleDeclineConnection } from "./routes/connections";
+import { handleGetUsers, handleApproveSponsor, handleDeclineSponsor, handleBulkApprove, handleUpsertUser, handleLogin, handleChangePassword } from "./routes/users";
+import { handleGetIncomingForSponsor, handleAddConnection, handleAcceptConnection, handleDeclineConnection, handleGetConnectionStatus } from "./routes/connections";
 import { handleGetMessagesForUser, handlePostMessage } from "./routes/messages";
 import { handleHealth } from "./routes/health";
 
@@ -33,6 +33,7 @@ export function createServer() {
   app.post("/api/sponsors/bulk_approve", handleBulkApprove);
 
   app.get("/api/connections/sponsor/:id/incoming", handleGetIncomingForSponsor);
+  app.get("/api/connections/status", handleGetConnectionStatus);
   app.post("/api/connections", handleAddConnection);
   app.post("/api/connections/accept", handleAcceptConnection);
   app.post("/api/connections/decline", handleDeclineConnection);
@@ -40,6 +41,8 @@ export function createServer() {
   app.get("/api/messages/user/:id", handleGetMessagesForUser);
   app.post("/api/messages", handlePostMessage);
   app.post("/api/users/upsert", handleUpsertUser);
+  app.post("/api/users/login", handleLogin);
+  app.post("/api/users/change-password", handleChangePassword);
 
   return app;
 }

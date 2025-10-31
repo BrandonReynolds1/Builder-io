@@ -31,7 +31,7 @@ export default function Login() {
     try {
       setIsLoading(true);
       await login(formData.email, formData.password);
-      navigate("/messages");
+      navigate("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

@@ -33,6 +33,7 @@ import {
   saveAllUsers,
   ensureConversationForUser,
 } from "@/lib/relations";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { ADMIN_ID, ADMIN_EMAIL, makeAdminUser } from "@/config/admin";
 
 interface ConversationMessage {
@@ -81,6 +82,7 @@ export default function Messages() {
   const [dbAvailable, setDbAvailable] = useState<boolean>(true);
 
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
+  const [usersById, setUsersById] = useState<Record<string, string>>({});
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportMessage, setSupportMessage] = useState("");
 
@@ -97,6 +99,17 @@ export default function Messages() {
         const convs = await getConversationsForUserAsync(user.id);
         if (!mounted) return;
         setConversations(convs);
+        // Build a quick lookup of userId -> displayName from server (or fallback local)
+        try {
+          const allUsers = await getAllUsersAsync();
+          if (mounted) {
+            const map: Record<string, string> = {};
+            for (const u of allUsers as any[]) {
+              map[u.id] = u.displayName || u.full_name || u.email || u.id;
+            }
+            setUsersById(map);
+          }
+        } catch {}
 
         if (user.role === 'user') {
           const allUsers = await getAllUsersAsync();
@@ -323,11 +336,32 @@ export default function Messages() {
                       <div className="space-y-2 mt-2">
                         {incomingRequests.map((r) => (
                           <div key={`${r.userId}_${r.sponsorId}`} className="flex items-center justify-between p-2 border rounded">
-                            <div>
-                              <div className="font-medium">{conversations.find(c => c.otherUserId === r.userId)?.otherUserName || r.userId}</div>
+                            <div className="flex-1 min-w-0">
+                              {(() => {
+                                const convName = conversations.find(c => c.otherUserId === r.userId)?.otherUserName;
+                                const name = usersById[r.userId] || convName || r.userId;
+                                const short = usersById[r.userId] || convName || `${r.userId.substring(0, 8)}…`;
+                                return (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="font-medium truncate break-all" title={name}>
+                                        {short}
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <div className="max-w-xs">
+                                        <div className="font-medium text-foreground">{name}</div>
+                                        {name !== r.userId && (
+                                          <div className="text-xs text-muted-foreground mt-1">ID: {r.userId}</div>
+                                        )}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                );
+                              })()}
                               <div className="text-xs text-muted-foreground">Requested {new Date(r.createdAt).toLocaleString()}</div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-shrink-0">
                                 <button
                                   onClick={async () => {
                                     await acceptConnectionAsync(r.userId, user.id);
@@ -341,7 +375,7 @@ export default function Messages() {
                                     const reqs = await getIncomingRequestsForSponsorAsync(user.id);
                                     setIncomingRequests(reqs);
                                   }}
-                                  className="px-2 py-1 bg-secondary text-secondary-foreground rounded"
+                                  className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm font-medium whitespace-nowrap"
                                 >
                                   Accept
                                 </button>
@@ -358,7 +392,7 @@ export default function Messages() {
                                     const reqs = await getIncomingRequestsForSponsorAsync(user.id);
                                     setIncomingRequests(reqs);
                                   }}
-                                  className="px-2 py-1 bg-red-500 text-white rounded"
+                                  className="px-3 py-1.5 bg-red-500 text-white rounded text-sm font-medium whitespace-nowrap"
                                 >
                                   Decline
                                 </button>

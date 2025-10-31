@@ -2,16 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
-import { CheckCircle, ChevronRight, FileCheck } from "lucide-react";
+import { CheckCircle, ChevronRight } from "lucide-react";
 
-type Step = "qualifications" | "experience" | "references" | "complete";
-
-interface Reference {
-  name: string;
-  relationship: string;
-  email: string;
-  phone: string;
-}
+type Step = "qualifications" | "experience" | "motivation" | "complete";
 
 export default function SponsorRegistration() {
   const navigate = useNavigate();
@@ -20,10 +13,7 @@ export default function SponsorRegistration() {
   const [qualifications, setQualifications] = useState<string[]>([]);
   const [yearsOfExperience, setYearsOfExperience] = useState<number>(0);
   const [certifications, setCertifications] = useState("");
-  const [references, setReferences] = useState<Reference[]>([
-    { name: "", relationship: "", email: "", phone: "" },
-    { name: "", relationship: "", email: "", phone: "" },
-  ]);
+  const [motivation, setMotivation] = useState("");
 
   if (!user) {
     navigate("/login");
@@ -44,16 +34,6 @@ export default function SponsorRegistration() {
     );
   };
 
-  const handleReferenceChange = (
-    index: number,
-    field: keyof Reference,
-    value: string,
-  ) => {
-    setReferences((prev) =>
-      prev.map((ref, i) => (i === index ? { ...ref, [field]: value } : ref)),
-    );
-  };
-
   const canProceed = () => {
     if (step === "qualifications") {
       return qualifications.length > 0 && yearsOfExperience > 0;
@@ -61,19 +41,14 @@ export default function SponsorRegistration() {
     if (step === "experience") {
       return certifications.trim() !== "";
     }
-    if (step === "references") {
-      return references.every((r) => r.name && r.relationship && r.email);
+    if (step === "motivation") {
+      return motivation.trim().length >= 10;
     }
     return true;
   };
 
   const getProgressPercent = () => {
-    const steps: Step[] = [
-      "qualifications",
-      "experience",
-      "references",
-      "complete",
-    ];
+    const steps: Step[] = ["qualifications", "experience", "motivation", "complete"];
     return ((steps.indexOf(step) + 1) / steps.length) * 100;
   };
 
@@ -81,6 +56,7 @@ export default function SponsorRegistration() {
     updateUserProfile({
       qualifications,
       yearsOfExperience,
+      sponsorMotivation: motivation,
     });
     setStep("complete");
   };
@@ -90,12 +66,8 @@ export default function SponsorRegistration() {
       case "qualifications":
         return (
           <div className="animate-fade-in">
-            <h2 className="text-2xl font-bold mb-6 text-foreground">
-              Your Qualifications
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              Select all that apply to your experience:
-            </p>
+            <h2 className="text-2xl font-bold mb-6 text-foreground">Your Qualifications</h2>
+            <p className="text-muted-foreground mb-6">Select all that apply to your experience:</p>
 
             <div className="space-y-3 mb-6">
               {qualificationOptions.map((qual) => (
@@ -120,11 +92,9 @@ export default function SponsorRegistration() {
               </span>
               <input
                 type="number"
-                min="0"
+                min={0}
                 value={yearsOfExperience}
-                onChange={(e) =>
-                  setYearsOfExperience(parseInt(e.target.value) || 0)
-                }
+                onChange={(e) => setYearsOfExperience(parseInt(e.target.value) || 0)}
                 className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </label>
@@ -150,9 +120,7 @@ export default function SponsorRegistration() {
       case "experience":
         return (
           <div className="animate-fade-in">
-            <h2 className="text-2xl font-bold mb-6 text-foreground">
-              Certifications & Background
-            </h2>
+            <h2 className="text-2xl font-bold mb-6 text-foreground">Certifications & Background</h2>
 
             <label className="block mb-6">
               <span className="block text-sm font-medium text-foreground mb-2">
@@ -175,7 +143,7 @@ export default function SponsorRegistration() {
                 Back
               </button>
               <button
-                onClick={() => setStep("references")}
+                onClick={() => setStep("motivation")}
                 disabled={!canProceed()}
                 className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -185,69 +153,25 @@ export default function SponsorRegistration() {
           </div>
         );
 
-      case "references":
+      case "motivation":
         return (
           <div className="animate-fade-in">
-            <h2 className="text-2xl font-bold mb-6 text-foreground">
-              Professional References
-            </h2>
+            <h2 className="text-2xl font-bold mb-6 text-foreground">Why do you want to be a sponsor?</h2>
             <p className="text-muted-foreground mb-6">
-              Provide two references who can verify your experience and
-              character
+              Share your motivation for helping others in recovery. This helps us understand your goals and match you better.
             </p>
 
-            {references.map((ref, index) => (
-              <div
-                key={index}
-                className="mb-6 p-6 border border-border rounded-lg"
-              >
-                <h3 className="font-bold text-foreground mb-4">
-                  Reference {index + 1}
-                </h3>
-                <div className="space-y-3">
-                  <input
-                    type="text"
-                    placeholder="Full Name"
-                    value={ref.name}
-                    onChange={(e) =>
-                      handleReferenceChange(index, "name", e.target.value)
-                    }
-                    className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Relationship (e.g., Counselor, Mentor)"
-                    value={ref.relationship}
-                    onChange={(e) =>
-                      handleReferenceChange(
-                        index,
-                        "relationship",
-                        e.target.value,
-                      )
-                    }
-                    className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <input
-                    type="email"
-                    placeholder="Email Address"
-                    value={ref.email}
-                    onChange={(e) =>
-                      handleReferenceChange(index, "email", e.target.value)
-                    }
-                    className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <input
-                    type="tel"
-                    placeholder="Phone Number"
-                    value={ref.phone}
-                    onChange={(e) =>
-                      handleReferenceChange(index, "phone", e.target.value)
-                    }
-                    className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-              </div>
-            ))}
+            <label className="block mb-6">
+              <span className="block text-sm font-medium text-foreground mb-2">Your motivation *</span>
+              <textarea
+                value={motivation}
+                onChange={(e) => setMotivation(e.target.value)}
+                placeholder="Tell us why you want to sponsor others and what impact you hope to make."
+                rows={6}
+                className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <p className="text-xs text-muted-foreground mt-2">Minimum 10 characters.</p>
+            </label>
 
             <div className="flex gap-3">
               <button
@@ -273,52 +197,39 @@ export default function SponsorRegistration() {
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-8 h-8 text-primary" />
             </div>
-            <h1 className="text-3xl font-bold mb-4 text-foreground">
-              Application Submitted!
-            </h1>
-            <p className="text-lg text-muted-foreground mb-2">
-              Thank you, {user.displayName}!
-            </p>
+            <h1 className="text-3xl font-bold mb-4 text-foreground">Application Submitted!</h1>
+            <p className="text-lg text-muted-foreground mb-2">Thank you, {user.displayName}!</p>
             <p className="text-muted-foreground mb-8">
-              We've received your sponsor application. Our team will review your
-              qualifications and verify your references.
+              We've received your sponsor application. Our team will review your qualifications and motivation.
             </p>
 
             <div className="bg-muted/30 border border-muted rounded-lg p-6 mb-8 text-left">
               <h3 className="font-bold text-foreground mb-4">What's Next</h3>
               <ol className="space-y-3 text-sm text-muted-foreground">
                 <li className="flex gap-3">
-                  <span className="font-bold text-primary flex-shrink-0">
-                    1.
-                  </span>
-                  <span>Reference verification (3-5 business days)</span>
+                  <span className="font-bold text-primary flex-shrink-0">1.</span>
+                  <span>Application review (1-3 business days)</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="font-bold text-primary flex-shrink-0">
-                    2.
-                  </span>
+                  <span className="font-bold text-primary flex-shrink-0">2.</span>
                   <span>Background check review</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="font-bold text-primary flex-shrink-0">
-                    3.
-                  </span>
-                  <span>Sponsor training program (online, 2 weeks)</span>
+                  <span className="font-bold text-primary flex-shrink-0">3.</span>
+                  <span>Sponsor training program (online, ~2 weeks)</span>
                 </li>
                 <li className="flex gap-3">
-                  <span className="font-bold text-primary flex-shrink-0">
-                    4.
-                  </span>
+                  <span className="font-bold text-primary flex-shrink-0">4.</span>
                   <span>Profile activation and seeker matching</span>
                 </li>
               </ol>
             </div>
 
             <button
-              onClick={() => navigate("/messages")}
+              onClick={() => navigate("/dashboard")}
               className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
             >
-              Go to Messages
+              Go to Dashboard
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -334,18 +245,11 @@ export default function SponsorRegistration() {
             <div className="mb-8">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-muted-foreground">
-                  Step{" "}
-                  {["qualifications", "experience", "references"].indexOf(
-                    step,
-                  ) + 1}{" "}
-                  of 3
+                  Step { ["qualifications", "experience", "motivation"].indexOf(step) + 1 } of 3
                 </span>
               </div>
               <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300"
-                  style={{ width: `${getProgressPercent()}%` }}
-                />
+                <div className="h-full bg-primary transition-all duration-300" style={{ width: `${getProgressPercent()}%` }} />
               </div>
             </div>
           )}
@@ -358,3 +262,4 @@ export default function SponsorRegistration() {
     </Layout>
   );
 }
+

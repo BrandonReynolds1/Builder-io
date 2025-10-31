@@ -14,6 +14,7 @@ export interface UserProfile {
   qualifications?: string[];
   yearsOfExperience?: number;
   vetted?: boolean;
+  sponsorMotivation?: string;
   // User-specific fields
   recoveryGoals?: string[];
 }
@@ -76,9 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Simulate API call - in production, call your backend
-    // Temporary hardcoded admin credentials
-    // Allow admin login using runtime-configurable credentials
+    // Admin shortcut (dev only)
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       const adminProfile: UserProfile = {
         id: ADMIN_ID,
@@ -87,55 +86,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: "admin",
         createdAt: new Date().toISOString(),
       };
-
       setUser(adminProfile);
       localStorage.setItem("sobrUser", JSON.stringify(adminProfile));
       return;
     }
 
-    // First try to find a matching local user record (for dev passwords)
-    const localUsers = JSON.parse(localStorage.getItem("sobrUsers") || "[]");
-    const foundLocal = localUsers.find((u: any) => u.email === email && u.password === password);
-
-    if (!foundLocal) {
-      throw new Error("Invalid email or password");
-    }
-
-    // Build profile from local data then merge remote data when available
-    const baseProfile: UserProfile = {
-      id: foundLocal.id,
-      email: foundLocal.email,
-      displayName: foundLocal.displayName,
-      role: foundLocal.role,
-      createdAt: foundLocal.createdAt,
-      qualifications: foundLocal.qualifications,
-      yearsOfExperience: foundLocal.yearsOfExperience,
-      vetted: foundLocal.vetted,
-      recoveryGoals: foundLocal.recoveryGoals,
-    };
-
+    // 1) Try server-side login using PoC password hash
     try {
-      const users = await getAllUsersAsync();
-      const remote = users.find((u: any) => u.email === email || u.id === baseProfile.id);
-      if (remote) {
-        // Adopt the DB UUID to ensure server writes/read use correct ids
-        const merged = { 
-          ...baseProfile, 
-          id: remote.id || baseProfile.id,
-          displayName: remote.displayName || baseProfile.displayName, 
-          role: remote.role || baseProfile.role, 
-          vetted: remote.vetted ?? baseProfile.vetted 
-        } as any;
-        setUser(merged);
-        localStorage.setItem("sobrUser", JSON.stringify(merged));
+      const res = await fetch('/api/users/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const serverUser = data.user as { id: string; email: string; full_name?: string };
+
+        // Merge with directory for role/vetted
+        try {
+          const users = await getAllUsersAsync();
+          const remote = users.find((u: any) => u.email === email || u.id === serverUser.id);
+          if (remote) {
+            const merged: UserProfile = {
+              id: remote.id || serverUser.id,
+              email: serverUser.email,
+              displayName: remote.displayName || serverUser.full_name || email,
+              role: (remote.role as UserRole) || 'user',
+              createdAt: new Date().toISOString(),
+              qualifications: remote.qualifications,
+              yearsOfExperience: remote.yearsOfExperience,
+              vetted: remote.vetted,
+              recoveryGoals: [],
+            };
+            setUser(merged);
+            localStorage.setItem('sobr_db_available', '1');
+            localStorage.setItem('sobrUser', JSON.stringify(merged));
+            return;
+          }
+        } catch {}
+
+        const minimal: UserProfile = {
+          id: serverUser.id,
+          email: serverUser.email,
+          displayName: serverUser.full_name || email,
+          role: 'user',
+          createdAt: new Date().toISOString(),
+        } as UserProfile;
+        setUser(minimal);
+        localStorage.setItem('sobr_db_available', '1');
+        localStorage.setItem('sobrUser', JSON.stringify(minimal));
         return;
       }
-    } catch {
-      // ignore and continue with local profile
+    } catch {}
+
+    // 2) Fallback to legacy local dev users
+    const localUsers = JSON.parse(localStorage.getItem("sobrUsers") || "[]");
+    const foundLocal = localUsers.find((u: any) => u.email === email && u.password === password);
+    if (foundLocal) {
+      const baseProfile: UserProfile = {
+        id: foundLocal.id,
+        email: foundLocal.email,
+        displayName: foundLocal.displayName,
+        role: foundLocal.role,
+        createdAt: foundLocal.createdAt,
+        qualifications: foundLocal.qualifications,
+        yearsOfExperience: foundLocal.yearsOfExperience,
+        vetted: foundLocal.vetted,
+        recoveryGoals: foundLocal.recoveryGoals,
+      };
+      setUser(baseProfile);
+      localStorage.setItem('sobr_db_available', '0');
+      localStorage.setItem('sobrUser', JSON.stringify(baseProfile));
+      return;
     }
 
-    setUser(baseProfile);
-    localStorage.setItem("sobrUser", JSON.stringify(baseProfile));
+    throw new Error("Invalid email or password");
   };
 
   const register = async (
@@ -153,13 +178,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const newUser = {
       id: `user_${Date.now()}`,
       email,
-      password, // In production, never store plain passwords!
+      // do not store password locally
       displayName,
       role,
       createdAt: new Date().toISOString(),
       qualifications: [],
       yearsOfExperience: 0,
       vetted: false,
+      sponsorMotivation: "",
       recoveryGoals: [],
     };
 
@@ -174,11 +200,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ 
           email: newUser.email, 
           full_name: newUser.displayName,
+          password, // server will hash and store
           metadata: { 
             role: newUser.role,
             qualifications: newUser.qualifications,
             yearsOfExperience: newUser.yearsOfExperience,
             vetted: newUser.vetted,
+            sponsorMotivation: newUser.sponsorMotivation,
             recoveryGoals: newUser.recoveryGoals
           }
         }) 
@@ -205,6 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       qualifications: newUser.qualifications,
       yearsOfExperience: newUser.yearsOfExperience,
       vetted: newUser.vetted,
+      sponsorMotivation: newUser.sponsorMotivation,
       recoveryGoals: newUser.recoveryGoals,
     };
 
@@ -246,6 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 qualifications: updatedUser.qualifications, 
                 yearsOfExperience: updatedUser.yearsOfExperience,
                 vetted: updatedUser.vetted,
+                sponsorMotivation: updatedUser.sponsorMotivation,
                 recoveryGoals: updatedUser.recoveryGoals
               }
             }) 

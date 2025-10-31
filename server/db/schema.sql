@@ -20,6 +20,8 @@ create table if not exists users (
   email text unique,
   full_name text,
   role_id integer references roles(id) on delete set null,
+  -- PoC local auth password hash (temporary until Supabase Auth migration)
+  password_hash text,
   profile jsonb,
   metadata jsonb,
   created_at timestamptz default now(),

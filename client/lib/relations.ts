@@ -6,6 +6,8 @@ export interface RawUser {
   vetted?: boolean;
   qualifications?: string[];
   yearsOfExperience?: number;
+  sponsorMotivation?: string;
+  metadata?: any;
 }
 
 export interface ConnectionRecord {
@@ -45,10 +47,22 @@ export async function getAllUsersAsync(): Promise<RawUser[]> {
     const res = await fetch('/api/users');
     if (!res.ok) throw new Error('network');
     const users = await res.json();
+    // Normalize server response into RawUser[] shape, extracting sponsorMotivation from metadata if present
+    const normalized: RawUser[] = (users || []).map((u: any) => ({
+      id: u.id,
+      email: u.email,
+      displayName: u.displayName || u.full_name || u.email,
+      role: u.role || (u.metadata && u.metadata.role) || 'user',
+      vetted: u.vetted,
+      qualifications: u.qualifications,
+      yearsOfExperience: u.yearsOfExperience,
+      sponsorMotivation: u.sponsorMotivation ?? (u.metadata && u.metadata.sponsorMotivation) ?? '',
+      metadata: u.metadata,
+    }));
     // cache locally for fallback
-    localStorage.setItem('sobrUsers', JSON.stringify(users));
+    localStorage.setItem('sobrUsers', JSON.stringify(normalized));
     localStorage.setItem('sobr_db_available', '1');
-    return users as RawUser[];
+    return normalized;
   } catch (err) {
     localStorage.setItem('sobr_db_available', '0');
     return getAllUsers();
@@ -166,6 +180,20 @@ export function getConnection(userId: string, sponsorId: string): ConnectionReco
 export async function getConnectionAsync(userId: string, sponsorId: string): Promise<ConnectionRecord | undefined> {
   const conns = await getConnectionsAsync();
   return conns.find((c) => c.userId === userId && c.sponsorId === sponsorId);
+}
+
+export async function fetchConnectionStatus(userId: string, sponsorId: string): Promise<"pending" | "accepted" | "declined" | null> {
+  try {
+    const url = `/api/connections/status?userId=${encodeURIComponent(userId)}&sponsorId=${encodeURIComponent(sponsorId)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('status failed');
+    const data = await res.json();
+    localStorage.setItem('sobr_db_available', '1');
+    return (data && data.status) || null;
+  } catch (err) {
+    localStorage.setItem('sobr_db_available', '0');
+    return null;
+  }
 }
 
 export function addConnectionRequest(userId: string, sponsorId: string) {
@@ -372,6 +400,10 @@ export function connectionIsAccepted(userId: string, sponsorId: string): boolean
 }
 
 export async function connectionIsAcceptedAsync(userId: string, sponsorId: string): Promise<boolean> {
+  // Prefer server truth when available
+  const status = await fetchConnectionStatus(userId, sponsorId);
+  if (status) return status === 'accepted';
+  // Fallback to local cache
   const conn = await getConnectionAsync(userId, sponsorId);
   return !!conn && conn.status === 'accepted';
 }
