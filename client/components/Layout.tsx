@@ -81,13 +81,6 @@ function Header() {
 
         <div className="hidden sm:flex items-center gap-2 sm:gap-4">
           <button
-            aria-label="Choose color scheme"
-            className="p-2 rounded-lg hover:bg-muted transition-colors"
-          >
-            <Palette className="w-5 h-5 text-foreground" />
-          </button>
-
-          <button
             aria-label="Toggle theme"
             onClick={toggleTheme}
             className="p-2 rounded-lg hover:bg-muted transition-colors"

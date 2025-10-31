@@ -3,6 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { CheckCircle, ChevronRight, Heart } from "lucide-react";
+import CrisisResources from "@/components/CrisisResources";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { recordTelemetryEvent } from "@/lib/telemetry";
 
 type Step = "goals" | "urgency" | "complete";
 
@@ -12,6 +23,9 @@ export default function UserNeeds() {
   const [step, setStep] = useState<Step>("goals");
   const [goals, setGoals] = useState<string[]>([]);
   const [urgency, setUrgency] = useState("");
+  const [acknowledgedCrisis, setAcknowledgedCrisis] = useState(false);
+  const [showCrisisModal, setShowCrisisModal] = useState(false);
+  const [telemetryOptIn, setTelemetryOptIn] = useState(false);
 
   if (!user) {
     navigate("/login");
@@ -48,6 +62,9 @@ export default function UserNeeds() {
       setStep("urgency");
     } else if (step === "urgency") {
       if (!urgency) return;
+      // If the user selected 'crisis' we require an acknowledgement to
+      // ensure resources are seen before continuing registration.
+      if (urgency === "crisis" && !acknowledgedCrisis) return;
       completeOnboarding();
     }
   };
@@ -126,7 +143,13 @@ export default function UserNeeds() {
               {urgencyOptions.map((option) => (
                 <button
                   key={option.value}
-                  onClick={() => setUrgency(option.value)}
+                  onClick={() => {
+                    setUrgency(option.value);
+                    // reset acknowledgement when changing away from crisis
+                    if (option.value !== "crisis") setAcknowledgedCrisis(false);
+                    // open modal for crisis so resources are prominent
+                    if (option.value === "crisis") setShowCrisisModal(true);
+                  }}
                   className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
                     urgency === option.value
                       ? "border-primary bg-primary/5"
@@ -139,6 +162,79 @@ export default function UserNeeds() {
               ))}
             </div>
 
+            {/* If user selected 'crisis' show crisis resources in a modal */}
+            <Dialog open={showCrisisModal} onOpenChange={setShowCrisisModal}>
+              <DialogContent className="bg-red-50/90 border-red-200">
+                <DialogHeader>
+                  <DialogTitle className="text-red-950 text-xl">Resources & Immediate Help</DialogTitle>
+                  <DialogDescription className="text-red-950/90 font-medium">
+                    
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div>
+                  <CrisisResources />
+
+                  <label className="flex items-start gap-3 mt-4">
+                    <input
+                      type="checkbox"
+                      checked={telemetryOptIn}
+                      onChange={(e) => setTelemetryOptIn(e.target.checked)}
+                      className="mt-1 w-4 h-4 rounded accent-primary"
+                    />
+                    <span className="text-sm text-red-950/90">
+                      Share an anonymous event with the app to help our team
+                      understand urgent need volume so we can improve support.
+                      No personal data is sent without your explicit consent.
+                    </span>
+                  </label>
+
+                  <label className="flex items-start gap-3 mt-4">
+                    <input
+                      type="checkbox"
+                      checked={acknowledgedCrisis}
+                      onChange={(e) => setAcknowledgedCrisis(e.target.checked)}
+                      className="mt-1 w-4 h-4 rounded accent-primary"
+                    />
+                    <span className="text-sm text-red-950/90 font-medium">
+                      I have read these resources and would like to continue
+                      with registration.
+                    </span>
+                  </label>
+                </div>
+
+                <DialogFooter>
+                  <div className="flex gap-2">
+                    <a
+                      href="tel:988"
+                      className="inline-flex items-center px-3 py-2 rounded-md bg-red-100 border-2 border-red-300 text-red-950 font-medium hover:bg-red-200 transition-colors"
+                    >
+                      Call 988
+                    </a>
+                    <button
+                      onClick={() => {
+                            // record telemetry if user opted-in
+                            if (telemetryOptIn && user) {
+                              recordTelemetryEvent({
+                                event: "crisis_selected",
+                                userId: user.id,
+                                payload: { goals, urgency: "crisis" },
+                              });
+                            }
+                        // close modal and allow continuing
+                        setShowCrisisModal(false);
+                      }}
+                      disabled={!acknowledgedCrisis}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Continue Registration
+                    </button>
+                  </div>
+                </DialogFooter>
+                <DialogClose />
+              </DialogContent>
+            </Dialog>
+
             <div className="flex gap-3">
               <button
                 onClick={() => setStep("goals")}
@@ -148,7 +244,7 @@ export default function UserNeeds() {
               </button>
               <button
                 onClick={handleNext}
-                disabled={!urgency}
+                disabled={!urgency || (urgency === "crisis" && !acknowledgedCrisis)}
                 className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Complete Setup
