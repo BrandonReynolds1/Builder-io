@@ -68,13 +68,19 @@ interface Conversation {
 export default function Messages() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+
+  if (!user) {
+    navigate("/login");
+    return null;
+  }
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"messages" | "browse">(
-    user?.role === "sponsor" ? "messages" : "browse",
+    user.role === "sponsor" ? "messages" : "browse",
   );
   const [availableSponsors, setAvailableSponsors] = useState<SponsorProfile[]>(
     [],
@@ -85,11 +91,6 @@ export default function Messages() {
   const [usersById, setUsersById] = useState<Record<string, string>>({});
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportMessage, setSupportMessage] = useState("");
-
-  if (!user) {
-    navigate("/login");
-    return null;
-  }
 
   useEffect(() => {
     let mounted = true;
