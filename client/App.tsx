@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
+import { checkDbHealth } from "./lib/health";
 import { getUserById, getAllUsers, saveAllUsers } from "@/lib/relations";
 import { ADMIN_ID, makeAdminUser } from "@/config/admin";
 import Index from "./pages/Index";
@@ -34,6 +35,17 @@ const App = () => {
     // Ensure dark theme is set
     document.documentElement.classList.add("dark");
     document.documentElement.classList.remove("light");
+  }, []);
+
+  useEffect(() => {
+    // Check DB health early so UI can decide fallback vs DB-backed flows
+    (async () => {
+      try {
+        await checkDbHealth();
+      } catch (e) {
+        // ignore
+      }
+    })();
   }, []);
 
   // Seed admin user once at startup if missing (development convenience)

@@ -2,6 +2,11 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { handleDemo } from "./routes/demo";
+import { handleConfig } from "./routes/config";
+import { handleGetUsers, handleApproveSponsor, handleDeclineSponsor, handleBulkApprove, handleUpsertUser } from "./routes/users";
+import { handleGetIncomingForSponsor, handleAddConnection, handleAcceptConnection, handleDeclineConnection } from "./routes/connections";
+import { handleGetMessagesForUser, handlePostMessage } from "./routes/messages";
+import { handleHealth } from "./routes/health";
 
 export function createServer() {
   const app = express();
@@ -17,7 +22,24 @@ export function createServer() {
     res.json({ message: ping });
   });
 
+  // Health check for DB availability
+  app.get("/api/health", handleHealth);
+
   app.get("/api/demo", handleDemo);
+  app.get("/api/config", handleConfig);
+  app.get("/api/users", handleGetUsers);
+  app.post("/api/sponsors/:id/approve", handleApproveSponsor);
+  app.post("/api/sponsors/:id/decline", handleDeclineSponsor);
+  app.post("/api/sponsors/bulk_approve", handleBulkApprove);
+
+  app.get("/api/connections/sponsor/:id/incoming", handleGetIncomingForSponsor);
+  app.post("/api/connections", handleAddConnection);
+  app.post("/api/connections/accept", handleAcceptConnection);
+  app.post("/api/connections/decline", handleDeclineConnection);
+
+  app.get("/api/messages/user/:id", handleGetMessagesForUser);
+  app.post("/api/messages", handlePostMessage);
+  app.post("/api/users/upsert", handleUpsertUser);
 
   return app;
 }
