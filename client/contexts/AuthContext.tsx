@@ -47,13 +47,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Admin shortcut (dev only)
+    // Admin shortcut (dev only) — ensure we resolve a real DB UUID and role_id
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      try {
+        const res = await fetch('/api/users/upsert', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email: ADMIN_EMAIL, full_name: 'Administrator', role: 'admin', metadata: {} })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const id = data?.user?.id as string | undefined;
+          const adminProfile: UserProfile = {
+            id: id || ADMIN_ID,
+            email: ADMIN_EMAIL,
+            displayName: 'Administrator',
+            role: 'admin',
+            createdAt: new Date().toISOString(),
+          };
+          setUser(adminProfile);
+          return;
+        }
+      } catch {}
+      // Fallback to legacy id if server unavailable
       const adminProfile: UserProfile = {
         id: ADMIN_ID,
         email: ADMIN_EMAIL,
-        displayName: "Administrator",
-        role: "admin",
+        displayName: 'Administrator',
+        role: 'admin',
         createdAt: new Date().toISOString(),
       };
       setUser(adminProfile);

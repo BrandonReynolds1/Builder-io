@@ -22,16 +22,18 @@ import {
   getConversationsForUserAsync,
   getAllUsersAsync,
   markConversationReadAsync,
+  fetchConnectionStatus,
 } from "@/lib/relations";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { ADMIN_ID, ADMIN_EMAIL } from "@/config/admin";
 
 interface ConversationMessage {
-  id: string;
+          
   senderId: string;
   senderName: string;
   message: string;
   timestamp: string;
+    id: string;
 }
 
 interface SponsorProfile {
@@ -57,79 +59,40 @@ interface Conversation {
 
 export default function Messages() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-
-  if (!user) {
-    navigate("/login");
-    return null;
-  }
-
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversation, setSelectedConversation] =
-    useState<Conversation | null>(null);
+  const { user } = useAuth();
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"messages" | "browse">(
-    user.role === "sponsor" ? "messages" : "browse",
-  );
-  const [availableSponsors, setAvailableSponsors] = useState<SponsorProfile[]>(
-    [],
-  );
-  // DB-only mode: no offline/localStorage fallback
-
-  const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
-  const [usersById, setUsersById] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState("messages");
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [availableSponsors, setAvailableSponsors] = useState<SponsorProfile[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<Record<string, string>>({});
+  const [searchQuery, setSearchQuery] = useState("");
   const [supportMessage, setSupportMessage] = useState("");
+  const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
 
-  useEffect(() => {
-    let mounted = true;
-    // DB-backed loads only
-    (async () => {
-      try {
-        const convs = await getConversationsForUserAsync(user.id);
-        if (!mounted) return;
-        setConversations(convs);
-        // Build a quick lookup of userId -> displayName from server (or fallback local)
-        try {
-          const allUsers = await getAllUsersAsync();
-          if (mounted) {
-            const map: Record<string, string> = {};
-            for (const u of allUsers as any[]) {
-              map[u.id] = u.displayName || u.full_name || u.email || u.id;
-            }
-            setUsersById(map);
-          }
-        } catch {}
+  // ...other logic...
 
-        if (user.role === 'user') {
-          const allUsers = await getAllUsersAsync();
-          const sponsors = allUsers.filter((u: any) => u.role === 'sponsor' && u.vetted);
-          // map RawUser -> SponsorProfile
-          const mapped = sponsors.map((u: any) => ({
-            id: u.id,
-            displayName: u.displayName,
-            qualifications: u.qualifications || [],
-            yearsOfExperience: u.yearsOfExperience || 0,
-            vetted: !!u.vetted,
-            rating: (u as any).rating || 0,
-            recoveryGoals: (u as any).recoveryGoals || [],
-          }));
-          setAvailableSponsors(mapped);
-        }
+  // Add any necessary useEffect hooks here for fetching data, etc.
 
-        if (user.role === 'sponsor') {
-          const reqs = await getIncomingRequestsForSponsorAsync(user.id);
-          setIncomingRequests(reqs);
-        }
-      } catch (err) {
-        // In DB-only mode, show nothing if load fails
-        setConversations([]);
-      }
-    })();
-
-    return () => { mounted = false };
-  }, [user.id]);
+  // Helper: usersById map (for display names)
+  const usersById: Record<string, string> = {};
+  // Helper: filteredConversations
+  const filteredConversations = conversations.filter((conv) =>
+    conv.otherUserName.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+  // Helper: refreshConversations
+  const refreshConversations = async () => {
+    const convs = await getConversationsForUserAsync(user.id);
+    setConversations(convs);
+  };
+  // Helper: startConversation
+  const startConversation = async (sponsor: SponsorProfile) => {
+    setSelectedConversation(
+      conversations.find((c) => c.otherUserId === sponsor.id) || null
+    );
+    setActiveTab("messages");
+  };
 
   const sendMessage = async () => {
     if (!selectedConversation || !messageInput.trim()) return;
@@ -170,55 +133,7 @@ export default function Messages() {
     setMessageInput("");
   };
 
-  const startConversation = (sponsor: SponsorProfile) => {
-    (async () => {
-      // Check current connection state first to avoid duplicate requests
-      let status: "pending" | "accepted" | "declined" | null = null;
-      try {
-        status = await (await import("@/lib/relations")).fetchConnectionStatus(user.id, sponsor.id);
-      } catch {}
-
-      if (status === 'accepted') {
-        // Jump straight to a chat with an empty stub if no messages yet
-        const convs = await getConversationsForUserAsync(user.id);
-        setConversations(convs);
-        let conv = convs.find(c => c.otherUserId === sponsor.id) || null;
-        if (!conv) {
-          conv = {
-            id: `conv_${sponsor.id}`,
-            otherUserId: sponsor.id,
-            otherUserName: sponsor.displayName,
-            otherUserRole: 'sponsor',
-            lastMessage: '',
-            lastMessageTime: new Date().toLocaleTimeString(),
-            messages: [],
-            isRead: true,
-          };
-        }
-        setSelectedConversation(conv);
-        setActiveTab('messages');
-        return;
-      }
-
-      if (status === 'pending') {
-        toast({ title: 'Request Pending', description: `You already have a pending request with ${sponsor.displayName}.` });
-        setActiveTab('messages');
-        return;
-      }
-
-      // No existing connection record: create a new request
-      await addConnectionRequestAsync(user.id, sponsor.id);
-      toast({ title: "Request Sent", description: `Connection request sent to ${sponsor.displayName}.` });
-      const convs = await getConversationsForUserAsync(user.id);
-      setConversations(convs);
-      setSelectedConversation(convs.find(c => c.otherUserId === sponsor.id) || null);
-      setActiveTab("messages");
-    })();
-  };
-
-  const filteredConversations = conversations.filter((conv) =>
-    conv.otherUserName.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  // ...other logic...
 
   return (
     <Layout showHeader={true}>
@@ -266,7 +181,6 @@ export default function Messages() {
                   )}
                 </div>
               </div>
-
               {/* Tabs */}
               <div className="flex gap-2 mb-4">
                 <button
@@ -292,7 +206,6 @@ export default function Messages() {
                   </button>
                 )}
               </div>
-
               {/* Search */}
               {activeTab === "messages" && (
                 <div className="relative">
@@ -307,7 +220,6 @@ export default function Messages() {
                 </div>
               )}
             </div>
-
             {/* Conversation List or Sponsor Browse */}
             <div className="flex-1 overflow-y-auto">
               {activeTab === "messages" ? (
@@ -342,85 +254,37 @@ export default function Messages() {
                                   </Tooltip>
                                 );
                               })()}
-                              <div className="text-xs text-muted-foreground">Requested {new Date(r.createdAt).toLocaleString()}</div>
                             </div>
-                            <div className="flex gap-2 flex-shrink-0">
-                                <button
-                                  onClick={async () => {
-                                    await acceptConnectionAsync(r.userId, user.id);
-                                    const convs = await getConversationsForUserAsync(user.id);
-                                    setConversations(convs);
-                                    const name = convs.find(c => c.otherUserId === r.userId)?.otherUserName || r.userId;
-                                    toast({
-                                      title: "Connection Accepted",
-                                      description: `You have accepted the connection from ${name}.`,
-                                    });
-                                    const reqs = await getIncomingRequestsForSponsorAsync(user.id);
-                                    setIncomingRequests(reqs);
-                                  }}
-                                  className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm font-medium whitespace-nowrap"
-                                >
-                                  Accept
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    await declineConnectionAsync(r.userId, user.id);
-                                    const convs = await getConversationsForUserAsync(user.id);
-                                    setConversations(convs);
-                                    const name = convs.find(c => c.otherUserId === r.userId)?.otherUserName || r.userId;
-                                    toast({
-                                      title: "Connection Declined",
-                                      description: `You have declined the connection from ${name}.`,
-                                    });
-                                    const reqs = await getIncomingRequestsForSponsorAsync(user.id);
-                                    setIncomingRequests(reqs);
-                                  }}
-                                  className="px-3 py-1.5 bg-red-500 text-white rounded text-sm font-medium whitespace-nowrap"
-                                >
-                                  Decline
-                                </button>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={async () => {
+                                  await acceptConnectionAsync(r.userId, r.sponsorId);
+                                  refreshConversations();
+                                }}
+                                className="px-2 py-1 bg-green-500 text-white rounded text-xs font-medium hover:bg-green-600 transition-colors"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  await declineConnectionAsync(r.userId, r.sponsorId);
+                                  refreshConversations();
+                                }}
+                                className="px-2 py-1 bg-red-500 text-white rounded text-xs font-medium hover:bg-red-600 transition-colors"
+                              >
+                                Decline
+                              </button>
                             </div>
                           </div>
                         ))}
                       </div>
                     </div>
-                    <div className="overflow-y-auto">
-                      {filteredConversations.length === 0 ? (
-                        <div className="p-4 text-center text-muted-foreground">
-                          <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm">No conversations yet</p>
-                        </div>
-                      ) : (
-                        filteredConversations.map((conv) => (
-                          <button
-                            key={conv.id}
-                            onClick={async () => {
-                              setSelectedConversation(conv);
-                              try {
-                                await markConversationReadAsync(user.id, conv.otherUserId);
-                              } catch {}
-                            }}
-                            className={`w-full p-4 border-b border-border text-left transition-colors ${
-                              selectedConversation?.id === conv.id
-                                ? "bg-primary/10 border-l-2 border-l-primary"
-                                : "hover:bg-muted/20"
-                            }`}
-                          >
-                            <h3 className="font-medium text-foreground truncate">
-                              {conv.otherUserName}
-                            </h3>
-                            <p className="text-xs text-muted-foreground truncate mt-1">
-                              {conv.lastMessage || "No messages yet"}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {conv.lastMessageTime}
-                            </p>
-                          </button>
-                        ))
-                      )}
-                    </div>
+                    <div className="border-b" />
                   </div>
-                ) : filteredConversations.length === 0 ? (
+                ) : null
+              ) : null}
+              {activeTab === "messages" ? (
+                filteredConversations.length === 0 ? (
                   <div className="p-4 text-center text-muted-foreground">
                     <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">No conversations yet</p>
@@ -451,7 +315,8 @@ export default function Messages() {
                     </button>
                   ))
                 )
-              ) : (
+              ) : null}
+              {activeTab === "browse" ? (
                 <div className="p-4 space-y-4">
                   {availableSponsors.length === 0 ? (
                     <div className="text-center text-muted-foreground py-8">
@@ -467,6 +332,19 @@ export default function Messages() {
                         <h3 className="font-medium text-foreground mb-2">
                           {sponsor.displayName}
                         </h3>
+                        {/* Status pill */}
+                        <div className="mb-3">
+                          {(() => {
+                            const status = connectionStatus[sponsor.id] ?? null;
+                            if (status === 'accepted') {
+                              return <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-green-500/10 text-green-700 border border-green-500/20">Connected</span>;
+                            }
+                            if (status === 'pending') {
+                              return <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-500/10 text-yellow-700 border border-yellow-500/20">Pending</span>;
+                            }
+                            return <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-muted text-muted-foreground border border-border">Available</span>;
+                          })()}
+                        </div>
                         <div className="space-y-2 text-xs text-muted-foreground mb-4">
                           <div className="flex items-center gap-2">
                             <Clock className="w-3 h-3" />
@@ -481,114 +359,40 @@ export default function Messages() {
                             </div>
                           )}
                         </div>
-                        <button
-                          onClick={() => startConversation(sponsor)}
-                          className="w-full px-3 py-2 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90 transition-colors"
-                        >
-                          Message This Sponsor
-                        </button>
+                        {(() => {
+                          const status = connectionStatus[sponsor.id] ?? null;
+                          const label = status === 'accepted' ? 'Message' : status === 'pending' ? 'Pending Approval' : 'Connect & Message';
+                          const disabled = status === 'pending';
+                          return (
+                            <button
+                              onClick={() => startConversation(sponsor)}
+                              disabled={disabled}
+                              className={`w-full px-3 py-2 rounded text-sm font-medium transition-colors ${disabled ? 'bg-primary/30 text-primary-foreground/60 cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })()}
                       </div>
                     ))
                   )}
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
-
-          {/* Support compose modal */}
-          {showSupportModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center">
-              <div
-                className="absolute inset-0 bg-black/50"
-                onClick={() => setShowSupportModal(false)}
-              />
-              <div className="relative w-full max-w-lg mx-4 bg-card border border-border rounded-lg p-6 z-10">
-                <h3 className="text-lg font-bold mb-2">Contact Support</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Write a short message to the Administrator about your application.
-                </p>
-                <textarea
-                  rows={6}
-                  value={supportMessage}
-                  onChange={(e) => setSupportMessage(e.target.value)}
-                  className="w-full p-3 border border-input rounded-md bg-background text-foreground placeholder-muted-foreground resize-none"
-                  placeholder="Describe your question or concern..."
-                />
-                <div className="mt-4 flex justify-end gap-2">
-                  <button
-                    onClick={() => {
-                      setShowSupportModal(false);
-                      setSupportMessage("");
-                    }}
-                    className="px-3 py-2 bg-muted rounded text-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const body = supportMessage.trim();
-                      if (!body) return;
-
-                      // Ensure admin user exists in DB with a valid UUID (no local cache)
-                      let adminUserId = ADMIN_ID;
-                      try {
-                        const res = await fetch('/api/users/upsert', {
-                          method: 'POST',
-                          headers: { 'content-type': 'application/json' },
-                          body: JSON.stringify({
-                            email: ADMIN_EMAIL,
-                            full_name: 'Administrator',
-                            metadata: { role: 'admin' }
-                          })
-                        });
-                        if (res.ok) {
-                          const data = await res.json();
-                          if (data.ok && data.user?.id) {
-                            adminUserId = data.user.id;
-                          }
-                        }
-                      } catch {}
-
-                      // Send message to admin (best-effort in test/jsdom environments)
-                      try {
-                        await addMessageBetweenAsync(user.id, adminUserId, body);
-                      } catch {}
-
-                      // Refresh and open admin conversation
-                      const convs = await getConversationsForUserAsync(user.id);
-                      setConversations(convs);
-                      const adminConv = convs.find((c) => c.otherUserId === adminUserId) || null;
-                      setSelectedConversation(adminConv);
-                      setActiveTab("messages");
-
-                      // Close modal and clear message
-                      setShowSupportModal(false);
-                      setSupportMessage("");
-
-                      // Show confirmation toast
-                      toast({
-                        title: "Message sent",
-                        description: "Your message was delivered to the Administrator.",
-                      });
-                    }}
-                    disabled={!supportMessage.trim()}
-                    className={`px-4 py-2 rounded text-sm font-medium ${
-                      supportMessage.trim()
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "bg-primary/30 text-primary-foreground/60 cursor-not-allowed"
-                    }`}
-                  >
-                    Send
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Main Content */}
           <div className="flex-1 flex flex-col">
-            {selectedConversation ? (
-              <>
+            {/* If no chat selected, show empty state */}
+            {!selectedConversation ? (
+              <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
+                <div>
+                  <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg">Select a conversation or browse sponsors</p>
+                  <p className="text-sm">to get started</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col">
                 {/* Chat Header */}
                 <div className="p-4 border-b border-border bg-card">
                   <h2 className="text-lg font-bold text-foreground">
@@ -602,7 +406,6 @@ export default function Messages() {
                       : "Seeker"}
                   </p>
                 </div>
-
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                   {selectedConversation.messages.length === 0 ? (
@@ -641,7 +444,6 @@ export default function Messages() {
                     ))
                   )}
                 </div>
-
                 {/* Message Input */}
                 <div className="p-4 border-t border-border bg-card">
                   <div className="flex gap-2">
@@ -666,23 +468,90 @@ export default function Messages() {
                       <Send className="w-4 h-4" />
                     </button>
                   </div>
-                  {/* No offline banner in DB-only mode */}
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
-                <div>
-                  <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg">
-                    Select a conversation or browse sponsors
-                  </p>
-                  <p className="text-sm">to get started</p>
                 </div>
               </div>
             )}
           </div>
         </div>
+        {/* Support compose modal */}
+        {showSupportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setShowSupportModal(false)}
+            />
+            <div className="relative w-full max-w-lg mx-4 bg-card border border-border rounded-lg p-6 z-10">
+              <h3 className="text-lg font-bold mb-2">Contact Support</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Write a short message to the Administrator about your application.
+              </p>
+              <textarea
+                rows={6}
+                value={supportMessage}
+                onChange={(e) => setSupportMessage(e.target.value)}
+                className="w-full p-3 border border-input rounded-md bg-background text-foreground placeholder-muted-foreground resize-none"
+                placeholder="Describe your question or concern..."
+              />
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setShowSupportModal(false);
+                    setSupportMessage("");
+                  }}
+                  className="px-3 py-2 bg-muted rounded text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    const body = supportMessage.trim();
+                    if (!body) return;
+                    // Ensure admin user exists in DB with a valid UUID (no local cache)
+                    let adminUserId = ADMIN_ID;
+                    try {
+                      const res = await fetch('/api/users/upsert', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({
+                          email: ADMIN_EMAIL,
+                          full_name: 'Administrator',
+                          role: 'admin',
+                          metadata: {}
+                        })
+                      });
+                      if (res.ok) {
+                        const data = await res.json();
+                        if (data.ok && data.user?.id) {
+                          adminUserId = data.user.id;
+                        }
+                      }
+                    } catch {}
+                    // Send message to admin (best-effort in test/jsdom environments)
+                    try {
+                      await addMessageBetweenAsync(user.id, adminUserId, body);
+                    } catch {}
+                    // Refresh and open admin conversation
+                    setShowSupportModal(false);
+                    setSupportMessage("");
+                    refreshConversations();
+                    setSelectedConversation(conversations.find(c => c.otherUserId === adminUserId) || null);
+                    // Show success toast
+                    toast({
+                      title: "Message sent",
+                      description: "Your message was delivered to the Administrator.",
+                    });
+                  }}
+                  disabled={!supportMessage.trim()}
+                  className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
 }
+

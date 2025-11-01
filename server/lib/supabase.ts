@@ -275,6 +275,11 @@ export async function markMessagesRead(toUserId: string, fromUserId: string): Pr
 
 export async function getUserRoleByUserId(userId: string): Promise<string | null> {
   const sb = getSupabaseClient();
+  // Guard against non-UUID ids (e.g., dev shortcuts like "admin")
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(userId)) {
+    return null;
+  }
   const { data, error } = await sb
     .from('users')
     .select('id, role_id, roles:role_id(name)')
