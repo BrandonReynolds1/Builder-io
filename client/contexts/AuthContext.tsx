@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_ID } from "@/config/admin";
 import { getAllUsersAsync } from "@/lib/relations";
+import { supabase } from "@/lib/supabase";
 
 export type UserRole = "user" | "sponsor" | "admin";
 
@@ -41,9 +42,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // DB-only: no localStorage bootstrap; session starts unauthenticated
+  // Bootstrap from Supabase Auth session if configured
   useEffect(() => {
-    setIsLoading(false);
+    let mounted = true;
+    (async () => {
+      try {
+        if (!supabase) return;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
+        if (session?.user?.id) {
+          // Enrich from directory
+          try {
+            const users = await getAllUsersAsync();
+            const email = session.user.email ?? '';
+            const remote = users.find((u: any) => (u.email || '').toLowerCase() === email.toLowerCase() || u.auth_uid === session.user.id);
+            if (remote) {
+              setUser({
+                id: remote.id,
+                email: remote.email || email,
+                displayName: remote.displayName || session.user.user_metadata?.full_name || email,
+                role: (remote.role as UserRole) || 'user',
+                createdAt: new Date().toISOString(),
+                qualifications: remote.qualifications,
+                yearsOfExperience: remote.yearsOfExperience,
+                vetted: remote.vetted,
+              });
+            }
+          } catch {}
+        }
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    })();
+
+    if (supabase) {
+      const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (!session?.user) {
+          setUser(null);
+        }
+      });
+      return () => {
+        mounted = false;
+        sub.subscription.unsubscribe();
+      };
+    }
+    return () => { mounted = false; };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -81,49 +124,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // 1) Try server-side login using PoC password hash
-    try {
-      const res = await fetch('/api/users/login', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const serverUser = data.user as { id: string; email: string; full_name?: string };
-
-        // Merge with directory for role/vetted
+    // 1) Prefer Supabase Auth
+    if (supabase) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (!error && data?.user) {
+        // Enrich from directory for role and profile
         try {
           const users = await getAllUsersAsync();
-          const remote = users.find((u: any) => u.email === email || u.id === serverUser.id);
-          if (remote) {
-            const merged: UserProfile = {
-              id: remote.id || serverUser.id,
-              email: serverUser.email,
-              displayName: remote.displayName || serverUser.full_name || email,
-              role: (remote.role as UserRole) || 'user',
-              createdAt: new Date().toISOString(),
-              qualifications: remote.qualifications,
-              yearsOfExperience: remote.yearsOfExperience,
-              vetted: remote.vetted,
-              recoveryGoals: [],
-            };
-            setUser(merged);
-            return;
+          const remote = users.find((u: any) => (u.email || '').toLowerCase() === email.toLowerCase() || u.auth_uid === data.user!.id);
+          if (!remote) {
+            // If no app user row, create one
+            try {
+              await fetch('/api/users/upsert', {
+                method: 'POST', headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ email, full_name: data.user.user_metadata?.full_name, auth_uid: data.user.id, role: 'user', metadata: {} })
+              });
+            } catch {}
           }
+          const merged = remote ? {
+            id: remote.id,
+            email: remote.email || email,
+            displayName: remote.displayName || data.user.user_metadata?.full_name || email,
+            role: (remote.role as UserRole) || 'user',
+            createdAt: new Date().toISOString(),
+            qualifications: remote.qualifications,
+            yearsOfExperience: remote.yearsOfExperience,
+            vetted: remote.vetted,
+            recoveryGoals: [],
+          } as UserProfile : {
+            id: data.user.id,
+            email,
+            displayName: data.user.user_metadata?.full_name || email,
+            role: 'user',
+            createdAt: new Date().toISOString(),
+          } as UserProfile;
+          setUser(merged);
+          return;
         } catch {}
-
-        const minimal: UserProfile = {
-          id: serverUser.id,
-          email: serverUser.email,
-          displayName: serverUser.full_name || email,
-          role: 'user',
-          createdAt: new Date().toISOString(),
-        } as UserProfile;
-        setUser(minimal);
-        return;
       }
-    } catch {}
+    }
 
     throw new Error("Invalid email or password");
   };
@@ -134,45 +173,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     displayName: string,
     role: UserRole,
   ) => {
-    // Create user in DB and then authenticate in-memory
-    const res = await fetch('/api/users/upsert', { 
-      method: 'POST', 
-      headers: { 'content-type': 'application/json' }, 
-      body: JSON.stringify({ 
-        email, 
-        full_name: displayName,
-        password, // server will hash and store
-        role, // set role_id on server; do not store in metadata
-        metadata: { 
-          qualifications: [],
-          yearsOfExperience: 0,
-          vetted: false,
-          sponsorMotivation: "",
-          recoveryGoals: []
-        }
-      }) 
-    });
-    if (!res.ok) throw new Error('Failed to register user');
-    const data = await res.json();
-    if (!data.ok || !data.user?.id) throw new Error('Failed to register user');
-
-    const userProfile: UserProfile = {
-      id: data.user.id,
-      email,
-      displayName,
-      role,
-      createdAt: new Date().toISOString(),
-      qualifications: [],
-      yearsOfExperience: 0,
-      vetted: false,
-      sponsorMotivation: "",
-      recoveryGoals: [],
-      onboardingUrgency: undefined,
-    };
-    setUser(userProfile);
+    if (supabase) {
+      // Use server-backed registration (admin API) to auto-confirm email for PoC
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          full_name: displayName,
+          role,
+          metadata: {
+            qualifications: [],
+            yearsOfExperience: 0,
+            vetted: false,
+            sponsorMotivation: "",
+            recoveryGoals: []
+          }
+        })
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body?.ok) throw new Error(body?.error || 'Failed to register user');
+      // sign in to establish session
+      const { error: signInError, data: signInData } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError || !signInData?.user) throw new Error(signInError?.message || 'Failed to sign in after registration');
+      // Build profile
+      const userProfile: UserProfile = {
+        id: body?.user?.id || signInData.user.id,
+        email,
+        displayName,
+        role,
+        createdAt: new Date().toISOString(),
+        qualifications: [],
+        yearsOfExperience: 0,
+        vetted: false,
+        sponsorMotivation: "",
+        recoveryGoals: [],
+        onboardingUrgency: undefined,
+      };
+      setUser(userProfile);
+      return;
+    }
   };
 
   const logout = () => {
+    (async () => { try { if (supabase) await supabase.auth.signOut(); } catch {} })();
     setUser(null);
   };
 

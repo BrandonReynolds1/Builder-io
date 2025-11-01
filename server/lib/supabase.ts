@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { randomBytes, scryptSync, timingSafeEqual } from "crypto";
 
 let supabase: SupabaseClient | null = null;
+let supabaseAdmin: SupabaseClient | null = null;
 
 /**
  * Initialize or return an existing Supabase client.
@@ -11,7 +12,7 @@ export function getSupabaseClient(): SupabaseClient {
   if (supabase) return supabase;
 
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_KEY;
+  const key = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
 
   if (!url || !key) {
     throw new Error(
@@ -25,6 +26,24 @@ export function getSupabaseClient(): SupabaseClient {
   });
 
   return supabase;
+}
+
+/**
+ * Admin client (service role). Uses SUPABASE_SERVICE_ROLE_KEY if available, falling back to SUPABASE_KEY.
+ * Required for privileged operations like creating auth users.
+ */
+export function getSupabaseAdminClient(): SupabaseClient {
+  if (supabaseAdmin) return supabaseAdmin;
+
+  const url = process.env.SUPABASE_URL;
+  const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+  if (!url || !adminKey) {
+    throw new Error(
+      "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY/SUPABASE_KEY for admin Supabase client"
+    );
+  }
+  supabaseAdmin = createClient(url, adminKey, { auth: { persistSession: false } });
+  return supabaseAdmin;
 }
 
 /**
@@ -95,6 +114,7 @@ export async function fetchUsers(): Promise<any[]> {
     const bg = (bgs as any[]).find((b) => b.sponsor_user_id === u.id);
     return {
       id: u.id,
+      auth_uid: u.auth_uid,
       email: u.email,
       displayName: u.full_name || (u.profile && u.profile.displayName) || u.email,
       role: role ? role.name : null,
@@ -445,7 +465,7 @@ function verifyPasswordHash(password: string, stored: string): boolean {
 }
 
 // Upsert a user record into the users table. Accepts id (optional), email, full_name, optional password and metadata.
-export async function upsertUser(payload: { id?: string; email: string; full_name?: string; password?: string; metadata?: any; role?: string } ) {
+export async function upsertUser(payload: { id?: string; email: string; full_name?: string; password?: string; metadata?: any; role?: string; auth_uid?: string } ) {
   const sb = getSupabaseClient();
   const record: any = { email: payload.email };
   // If caller provided an id ensure it's a valid UUID before including it.
@@ -458,6 +478,7 @@ export async function upsertUser(payload: { id?: string; email: string; full_nam
     }
   }
   if (payload.full_name) record.full_name = payload.full_name;
+  if (payload.auth_uid) record.auth_uid = payload.auth_uid;
   if (payload.metadata) {
     // Do not persist role inside metadata; keep only column with FK to roles
     const { role: _role, ...rest } = payload.metadata || {};
@@ -529,4 +550,80 @@ export async function changeUserPassword(userId: string, oldPassword: string, ne
   
   if (updateError) throw updateError;
   return true;
+}
+
+/**
+ * Change password for a Supabase Auth user by verifying the old password then updating via Admin API.
+ * Returns true on success, false if old password invalid or user not linked.
+ */
+export async function changePasswordViaSupabaseAuth(userId: string, oldPassword: string, newPassword: string): Promise<boolean> {
+  const sb = getSupabaseClient();
+  const admin = getSupabaseAdminClient();
+  // Fetch user linkage
+  const { data: rows, error } = await sb
+    .from('users')
+    .select('id,email,auth_uid')
+    .eq('id', userId)
+    .limit(1);
+  if (error) throw error;
+  const row = (rows && rows[0]) || null;
+  if (!row?.auth_uid || !row?.email) return false;
+  // Verify old password by attempting a sign-in (uses anon key)
+  const { error: signInErr, data: signInData } = await sb.auth.signInWithPassword({ email: row.email, password: oldPassword });
+  if (signInErr || !signInData?.user) return false;
+  // Update password via admin
+  const upd = await admin.auth.admin.updateUserById(row.auth_uid, { password: newPassword });
+  if (upd.error) throw upd.error;
+  return true;
+}
+
+// --- Supabase Auth migration helpers ---
+
+/** Ensure an auth user exists for the given email; return auth uid. */
+export async function ensureAuthUser(email: string, password: string, full_name?: string): Promise<string> {
+  const admin = getSupabaseAdminClient();
+  // Try to fetch existing auth user via Admin API
+  const existing = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
+  const found = (existing?.data?.users || []).find((u: any) => (u.email || "").toLowerCase() === email.toLowerCase());
+  if (found?.id) return found.id as string;
+
+  const created = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: full_name ? { full_name } : undefined,
+  });
+  if (created.error || !created.data?.user?.id) {
+    throw created.error || new Error("Failed to create auth user");
+  }
+  return created.data.user.id as string;
+}
+
+/**
+ * Migrate all rows from users table to Supabase Auth with a default password.
+ * - Creates auth.users for any user without auth_uid
+ * - Updates users.auth_uid and clears legacy password_hash
+ */
+export async function migrateUsersToSupabaseAuth(defaultPassword = "testing"): Promise<{ migrated: number; skipped: number }> {
+  const sb = getSupabaseClient();
+  const { data: users, error } = await sb.from('users').select('id,email,full_name,auth_uid');
+  if (error) throw error;
+  let migrated = 0;
+  let skipped = 0;
+  for (const u of users || []) {
+    if (!u?.email) { skipped++; continue; }
+    try {
+      const authUid = await ensureAuthUser(u.email, defaultPassword, u.full_name ?? undefined);
+      if (authUid && authUid !== u.auth_uid) {
+        await sb.from('users').update({ auth_uid: authUid, password_hash: null }).eq('id', u.id);
+        migrated++;
+      } else {
+        skipped++;
+      }
+    } catch (e) {
+      console.error('[migrateUsersToSupabaseAuth] failed for', u.email, e);
+      skipped++;
+    }
+  }
+  return { migrated, skipped };
 }

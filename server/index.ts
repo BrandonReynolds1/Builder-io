@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import { handleDemo } from "./routes/demo";
 import { handleConfig } from "./routes/config";
-import { handleGetUsers, handleApproveSponsor, handleDeclineSponsor, handleBulkApprove, handleUpsertUser, handleLogin, handleChangePassword } from "./routes/users";
+import { handleGetUsers, handleApproveSponsor, handleDeclineSponsor, handleBulkApprove, handleUpsertUser, handleLogin, handleChangePassword, handleMigrateAuth, handleAdminRegister } from "./routes/users";
 import { handleGetIncomingForSponsor, handleAddConnection, handleAcceptConnection, handleDeclineConnection, handleGetConnectionStatus } from "./routes/connections";
 import { handleGetMessagesForUser, handlePostMessage, handleMarkRead } from "./routes/messages";
 import { handleGetDashboardMetrics } from "./routes/dashboard";
@@ -48,6 +48,10 @@ export function createServer() {
   app.post("/api/users/upsert", handleUpsertUser);
   app.post("/api/users/login", handleLogin);
   app.post("/api/users/change-password", handleChangePassword);
+  // PoC: server-backed registration to bypass email confirmation
+  app.post("/api/auth/register", handleAdminRegister);
+  // PoC admin migration route
+  app.post("/api/admin/migrate-auth", handleMigrateAuth);
 
   return app;
 }

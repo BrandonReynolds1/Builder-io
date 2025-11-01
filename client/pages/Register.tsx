@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
-import { Heart, Users, ChevronRight, AlertCircle } from "lucide-react";
+import { Heart, Users, ChevronRight } from "lucide-react";
 
 type Step = "role" | "details";
 
@@ -13,7 +13,13 @@ export default function Register() {
   const [selectedRole, setSelectedRole] = useState<"user" | "sponsor" | null>(
     null,
   );
-  const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({
+    email: "",
+    displayName: "",
+    password: "",
+    confirmPassword: "",
+    general: "",
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -33,23 +39,23 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setFieldErrors({ email: "", displayName: "", password: "", confirmPassword: "", general: "" });
 
     // Validation
     if (!formData.email || !validateEmail(formData.email)) {
-      setError("Please enter a valid email address");
+      setFieldErrors((prev) => ({ ...prev, email: "Please enter a valid email address" }));
       return;
     }
     if (!formData.displayName.trim()) {
-      setError("Please enter a display name");
+      setFieldErrors((prev) => ({ ...prev, displayName: "Please enter a display name" }));
       return;
     }
     if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters");
+      setFieldErrors((prev) => ({ ...prev, password: "Password must be at least 6 characters" }));
       return;
     }
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+      setFieldErrors((prev) => ({ ...prev, confirmPassword: "Passwords do not match" }));
       return;
     }
 
@@ -69,7 +75,18 @@ export default function Register() {
         navigate("/user-needs");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      const message = err instanceof Error ? err.message : "Registration failed";
+      // Attempt to map to a field-specific error
+      const lower = message.toLowerCase();
+      if (lower.includes("password")) {
+        setFieldErrors((prev) => ({ ...prev, password: message }));
+      } else if (lower.includes("email")) {
+        setFieldErrors((prev) => ({ ...prev, email: message }));
+      } else if (lower.includes("name") || lower.includes("display")) {
+        setFieldErrors((prev) => ({ ...prev, displayName: message }));
+      } else {
+        setFieldErrors((prev) => ({ ...prev, general: message }));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -162,12 +179,7 @@ export default function Register() {
                   : "Tell us a bit about yourself"}
               </p>
 
-              {error && (
-                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-red-100">{error}</p>
-                </div>
-              )}
+              {/* Show only field-level errors; no global banner or toast */}
 
               <form onSubmit={handleSubmit} className="space-y-4 mb-6">
                 <label className="block">
@@ -183,6 +195,9 @@ export default function Register() {
                     className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     autoFocus
                   />
+                  {fieldErrors.email && (
+                    <p className="text-red-500 text-sm mt-1">{fieldErrors.email}</p>
+                  )}
                 </label>
 
                 <label className="block">
@@ -197,6 +212,9 @@ export default function Register() {
                     placeholder="John Smith"
                     className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   />
+                  {fieldErrors.displayName && (
+                    <p className="text-red-500 text-sm mt-1">{fieldErrors.displayName}</p>
+                  )}
                 </label>
 
                 <label className="block">
@@ -211,6 +229,9 @@ export default function Register() {
                     placeholder="Minimum 6 characters"
                     className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   />
+                  {fieldErrors.password && (
+                    <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>
+                  )}
                 </label>
 
                 <label className="block">
@@ -225,6 +246,9 @@ export default function Register() {
                     placeholder="Confirm your password"
                     className="w-full px-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   />
+                  {fieldErrors.confirmPassword && (
+                    <p className="text-red-500 text-sm mt-1">{fieldErrors.confirmPassword}</p>
+                  )}
                 </label>
 
                 <button

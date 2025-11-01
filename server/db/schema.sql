@@ -29,6 +29,7 @@ create table if not exists users (
 );
 
 create index if not exists idx_users_email on users(email);
+create index if not exists idx_users_auth_uid on users(auth_uid);
 
 -- Sponsors: optional profile details specific to sponsors (references users)
 create table if not exists sponsor_backgrounds (
